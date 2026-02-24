@@ -4,6 +4,7 @@ import SpriteKit
 struct GameView: View {
     let levelType: LevelType
     @Environment(GameState.self) private var state
+    @Environment(AppSettings.self) private var settings
     @Environment(\.dismiss) private var dismiss
     @State private var scene: GameScene?
     @State private var showBrainMap = false
@@ -62,25 +63,112 @@ struct GameView: View {
     // MARK: - HUD
 
     private var hud: some View {
-        HStack {
-            Text("Try \(agent.totalEpisodes + 1)")
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundStyle(Theme.textSecondary)
-
-            Spacer()
-
-            if agent.bestEpisodeSteps < Int.max {
-                Label("Best \(agent.bestEpisodeSteps)", systemImage: "trophy.fill")
+        VStack(spacing: 4) {
+            HStack {
+                Text("Try \(agent.totalEpisodes + 1)")
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Theme.orange)
+                    .foregroundStyle(Theme.textSecondary)
+
+                Spacer()
+
+                if agent.bestEpisodeSteps < Int.max {
+                    Label("Best \(agent.bestEpisodeSteps)", systemImage: "trophy.fill")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Theme.orange)
+                }
+
+                Spacer()
+
+                Text("\(agent.episodeSteps)/30")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Theme.textSecondary)
+                    .monospacedDigit()
             }
 
+            if settings.enthusiastMode {
+                enthusiastHUD
+            }
+        }
+    }
+
+    private var enthusiastHUD: some View {
+        let qVals = topQValues
+        return HStack(spacing: 0) {
+            // Epsilon pill
+            HStack(spacing: 4) {
+                Text("ε")
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundStyle(Theme.purple)
+                Text(String(format: "%.3f", agent.epsilon))
+                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(Theme.purple)
+                    .monospacedDigit()
+
+                // Epsilon bar
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Theme.purple.opacity(0.12)).frame(height: 4)
+                        Capsule().fill(Theme.purple.opacity(0.6))
+                            .frame(width: geo.size.width * agent.epsilon, height: 4)
+                    }
+                }
+                .frame(width: 44, height: 8)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Theme.purple.opacity(0.07), in: Capsule())
+
             Spacer()
 
-            Text("\(agent.episodeSteps)/30")
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundStyle(Theme.textSecondary)
-                .monospacedDigit()
+            // Top Q-values for current state
+            if !qVals.isEmpty {
+                HStack(spacing: 6) {
+                    ForEach(qVals.prefix(3), id: \.action) { item in
+                        HStack(spacing: 2) {
+                            Text(actionArrow(item.action))
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(item.value >= 0 ? Theme.green : Theme.red)
+                            Text(String(format: "%.1f", item.value))
+                                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                                .foregroundStyle(item.value >= 0 ? Theme.green : Theme.red)
+                                .monospacedDigit()
+                        }
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Theme.card.opacity(0.8), in: Capsule())
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: tick)
+    }
+
+    private struct QEntry: Identifiable {
+        let action: String
+        let value: Double
+        var id: String { action }
+    }
+
+    private var topQValues: [QEntry] {
+        guard let scene, let gs = scene.gameState else { return [] }
+        let env = gs.environment(for: levelType)
+        let state = env.currentState
+        let actions = env.availableActions
+        let qTable = gs.qTable(for: levelType)
+        return actions
+            .map { QEntry(action: $0, value: qTable.getValue(state: state, action: $0)) }
+            .sorted { abs($0.value) > abs($1.value) }
+    }
+
+    private func actionArrow(_ action: String) -> String {
+        switch action {
+        case "up":    return "↑"
+        case "down":  return "↓"
+        case "left":  return "←"
+        case "right": return "→"
+        case "sit":   return "🐶"
+        case "move":  return "🐕"
+        default:      return action.prefix(1).uppercased()
         }
     }
 
@@ -175,7 +263,7 @@ struct GameView: View {
             }
 
             HStack(spacing: 12) {
-                Button { deliverReward(-1.0) } label: {
+                Button { deliverReward(-settings.penalty(for: levelType)) } label: {
                     HStack(spacing: 4) {
                         Text("👎")
                         Text("Bad")
@@ -202,7 +290,7 @@ struct GameView: View {
                 .disabled(waiting || autoPlay)
                 .opacity((!waiting && !autoPlay) ? 1 : 0.3)
 
-                Button { deliverReward(1.0) } label: {
+                Button { deliverReward(settings.treat(for: levelType)) } label: {
                     HStack(spacing: 4) {
                         Text("🦴")
                         Text("Treat")

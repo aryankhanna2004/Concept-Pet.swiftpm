@@ -4,6 +4,7 @@ import PhotosUI
 
 struct HomeView: View {
     @Environment(GameState.self) private var state
+    @Environment(AppSettings.self) private var settings
     @State private var pulse: CGFloat = 1.0
     @State private var appeared = false
     @State private var showPlayground = false
@@ -12,6 +13,7 @@ struct HomeView: View {
     @State private var generatedPetURL: URL?
     @State private var generatedPetImage: UIImage?
     @State private var showPlaygroundUnavailable = false
+    @State private var showSettings = false
 
     var body: some View {
         NavigationStack {
@@ -108,6 +110,22 @@ struct HomeView: View {
                 Button("OK", role: .cancel) { }
             } message: {
                 Text("Turn on Apple Intelligence in Settings > Apple Intelligence & Siri, then try again.")
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: settings.enthusiastMode ? "atom" : "gearshape")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundStyle(settings.enthusiastMode ? Theme.purple : Theme.textSecondary)
+                    }
+                }
+            }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
+                    .environment(settings)
+                    .environment(state)
             }
         }
     }

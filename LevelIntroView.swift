@@ -2,11 +2,13 @@ import SwiftUI
 
 struct LevelIntroView: View {
     let levelType: LevelType
+    @Environment(AppSettings.self) private var settings
     @State private var appeared = false
     @State private var demoStep = 0
     @State private var demoTimer: Timer?
     @State private var heroTick = false
     @State private var heroTimer: Timer?
+    @State private var deepDiveExpanded = false
 
     var body: some View {
         ZStack {
@@ -50,6 +52,9 @@ struct LevelIntroView: View {
                         qLearningCard
                         conceptBulletCard
                         howToPlayCard
+                        if settings.enthusiastMode {
+                            deepDiveCard
+                        }
                     }
                     .padding(.horizontal, 20)
                     .opacity(appeared ? 1 : 0)
@@ -681,6 +686,405 @@ struct LevelIntroView: View {
             "Avoid the 🧦 stinky sock!",
             "Sock = big penalty, ball = big reward"
         ]
+        }
+    }
+
+    // MARK: - Deep Dive Card (Enthusiast Mode)
+
+    private var deepDiveCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    deepDiveExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 10) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Theme.purple.opacity(0.12))
+                            .frame(width: 30, height: 30)
+                        Image(systemName: "atom")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Theme.purple)
+                    }
+                    Text("Deep Dive")
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text("Enthusiast")
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Theme.purple)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(Theme.purple.opacity(0.12), in: Capsule())
+                    Spacer()
+                    Image(systemName: deepDiveExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Theme.purple)
+                }
+                .padding(16)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if deepDiveExpanded {
+                Divider().padding(.horizontal, 16)
+
+                VStack(alignment: .leading, spacing: 18) {
+                    deepDiveAlgorithm
+                    deepDiveFormula
+                    deepDiveHyperparams
+                    deepDiveLevelSpecific
+                }
+                .padding(16)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(Theme.purple.opacity(0.3), lineWidth: 1)
+        )
+    }
+
+    private var deepDiveAlgorithm: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ddSectionHeader("Q-Learning Algorithm", icon: "brain.fill")
+
+            ddText("Q-Learning is how the pup figures out what to do. It keeps a giant cheat sheet called a Q-table. For every situation (state) and every possible move (action), it stores a score: \"how good is this move from here?\" The higher the score, the more the pup trusts that move.")
+
+            ddText("Every single step follows the same loop:")
+            VStack(alignment: .leading, spacing: 8) {
+                ddNumbered(1, "Look at where you are — the current state s")
+                ddNumbered(2, "Decide what to do — using ε-greedy (explained below)")
+                ddNumbered(3, "Do it, get a reward r, land in new state s'")
+                ddNumbered(4, "Update the cheat sheet — the Bellman equation")
+                ddNumbered(5, "Lower ε a little — be slightly less random next time")
+            }
+        }
+    }
+
+    private var deepDiveFormula: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            ddSectionHeader("Bellman Update Equation", icon: "function")
+
+            // Equation — split into two lines cleanly
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Q(s, a)  ←  Q(s, a)")
+                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(Theme.purple)
+                Text("  +  α · [ r  +  γ · maxQ(s',a')  −  Q(s,a) ]")
+                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(Theme.purple)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.purple.opacity(0.07), in: RoundedRectangle(cornerRadius: 10))
+
+            ddText("Read it as: the new score for this move = the old score, shifted a little bit toward what just happened. Each term has an exact meaning in the math — and a direct real-world meaning in your pup's brain.")
+
+            // Term-by-term: symbol + formal name + plain meaning
+            VStack(alignment: .leading, spacing: 12) {
+                ddTermRow(
+                    symbol: "Q(s, a)",
+                    formalName: "Action-value function",
+                    color: Theme.purple,
+                    plain: "The score on the cheat sheet for taking action a in state s. This number answers: \"how good is it, in the long run, to do this move right now?\" It's what gets updated every step."
+                )
+                ddTermRow(
+                    symbol: "←",
+                    formalName: "Assignment (update)",
+                    color: Theme.textSecondary,
+                    plain: "We're not solving an equation — we're overwriting the old value with a new, slightly better estimate. The left side becomes the result of the right side."
+                )
+                ddTermRow(
+                    symbol: "α  (alpha)",
+                    formalName: "Learning rate",
+                    color: Theme.blue,
+                    plain: "Controls how big a step we take toward the new estimate. α = 0.7 means: take 70% of the correction, keep 30% of the old value. High α = learns fast but can be jumpy. Low α = stable but slow."
+                )
+                ddTermRow(
+                    symbol: "r",
+                    formalName: "Reward signal",
+                    color: Theme.green,
+                    plain: "The immediate reward from this step — the treat or the bad you just gave. This is the only real-world feedback the pup gets. Everything else is the pup's own estimates."
+                )
+                ddTermRow(
+                    symbol: "γ  (gamma)",
+                    formalName: "Discount factor",
+                    color: Theme.orange,
+                    plain: "How much the pup values future rewards vs right now. γ = 0.95 means a treat that's 2 steps away is still worth ~90% of an immediate treat. γ = 0 would mean only care about right now. γ = 1 means infinite patience."
+                )
+                ddTermRow(
+                    symbol: "maxQ(s', a')",
+                    formalName: "Maximum future Q-value",
+                    color: Theme.teal,
+                    plain: "The best score in the cheat sheet for any action from the next state s'. This is the pup's own guess about how good the future looks from here. It's bootstrapping — learning from its own estimates."
+                )
+                ddTermRow(
+                    symbol: "[ r + γ·maxQ − Q(s,a) ]",
+                    formalName: "Temporal difference (TD) error",
+                    color: Theme.red,
+                    plain: "The gap between what the pup expected and what actually happened. Positive = it was pleasantly surprised (score too low). Negative = disappointed (score too high). We correct by α × this gap. If TD error = 0, the prediction was perfect — no update needed."
+                )
+            }
+        }
+    }
+
+    private var deepDiveHyperparams: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            ddSectionHeader("Hyperparameters (this lesson)", icon: "slider.horizontal.3")
+
+            let p = hyperparamInfo
+
+            ddText("These are the knobs set before training starts. Unlike Q-values, they don't change automatically — they shape how learning happens. Each one has a formal role in the algorithm and a practical effect you can observe.")
+
+            VStack(alignment: .leading, spacing: 14) {
+                ddHyperparam(
+                    symbol: "α = \(String(format: "%.2f", p.alpha))",
+                    formalName: "Learning rate  (alpha)",
+                    formalRole: "Scales the TD error before updating Q",
+                    color: Theme.blue,
+                    plain: "At \(String(format: "%.2f", p.alpha)), each update moves the score \(Int(p.alpha * 100))% toward the new target. Too high → the pup keeps second-guessing itself. Too low → takes forever to learn anything."
+                )
+                ddHyperparam(
+                    symbol: "γ = \(String(format: "%.2f", p.gamma))",
+                    formalName: "Discount factor  (gamma)",
+                    formalRole: "Weights future Q-values in the Bellman equation",
+                    color: Theme.orange,
+                    plain: "At \(String(format: "%.2f", p.gamma)), a treat 2 steps away is worth \(String(format: "%.0f%%", p.gamma * p.gamma * 100)) of an immediate one. This makes the pup plan ahead rather than just chase the nearest reward."
+                )
+                ddHyperparam(
+                    symbol: "ε₀ = \(String(format: "%.2f", p.epsilonStart))",
+                    formalName: "Initial epsilon  (exploration rate)",
+                    formalRole: "Starting probability of choosing a random action",
+                    color: Theme.purple,
+                    plain: "The pup ignores its cheat sheet and picks randomly \(Int(p.epsilonStart * 100))% of the time at first. This is exploration — it needs to try things before it can know what works."
+                )
+                ddHyperparam(
+                    symbol: "×\(String(format: "%.2f", p.epsilonDecay))  per episode",
+                    formalName: "Epsilon decay  (annealing schedule)",
+                    formalRole: "Multiplies ε after each episode ends",
+                    color: Theme.purple.opacity(0.8),
+                    plain: "After each round, ε shrinks by \(Int((1 - p.epsilonDecay) * 100))%. This is called annealing — start broad, gradually commit. As the cheat sheet fills in, random exploration becomes less valuable."
+                )
+                ddHyperparam(
+                    symbol: "ε_min = \(String(format: "%.2f", p.epsilonMin))",
+                    formalName: "Minimum epsilon  (exploration floor)",
+                    formalRole: "Lower bound — ε never goes below this",
+                    color: Theme.purple.opacity(0.6),
+                    plain: "Even after full training, the pup still acts randomly \(Int(p.epsilonMin * 100))% of the time. This prevents getting permanently stuck in a bad habit if conditions change."
+                )
+            }
+
+            Divider()
+
+            deepDiveEpsilonGreedy
+        }
+    }
+
+    private var deepDiveEpsilonGreedy: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ddSectionHeader("ε-Greedy Policy", icon: "dice")
+
+            ddText("Formally: a policy π where the agent selects the greedy (highest Q) action with probability 1−ε, and a uniformly random action with probability ε.")
+            ddText("In plain terms: it's a weighted coin flip the pup does every single step.")
+
+            // Visual coin flip
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Theme.purple.opacity(0.12))
+                    VStack(spacing: 5) {
+                        Text("🎲")
+                            .font(.system(size: 22))
+                        Text("Explore")
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .foregroundStyle(Theme.purple)
+                        Text("prob = ε")
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(Theme.purple.opacity(0.8))
+                        Text("Pick any random action")
+                            .font(.system(size: 10, weight: .regular, design: .rounded))
+                            .foregroundStyle(Theme.textSecondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 6)
+                }
+                .frame(maxWidth: .infinity)
+
+                Text("or")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Theme.textSecondary)
+
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Theme.green.opacity(0.10))
+                    VStack(spacing: 5) {
+                        Text("🧠")
+                            .font(.system(size: 22))
+                        Text("Exploit")
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .foregroundStyle(Theme.green)
+                        Text("prob = 1−ε")
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(Theme.green.opacity(0.8))
+                        Text("Pick argmax Q(s, a)")
+                            .font(.system(size: 10, weight: .regular, design: .monospaced))
+                            .foregroundStyle(Theme.textSecondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 6)
+                }
+                .frame(maxWidth: .infinity)
+            }
+
+            ddText("argmax Q(s, a) — formal term for \"pick the action with the highest Q-value in the current state.\" This is the greedy choice — no randomness, just trust the cheat sheet.")
+
+            ddText("Why not always be greedy? Because early on, most Q-values are 0 — the cheat sheet is blank. Greedy would just lock you into the first thing that got any reward. Exploration forces the agent to visit more of the state space and build a complete map before committing.")
+
+            ddText("Why not always explore? Because you'd never actually use what you learned. The whole point of training is to eventually trust the cheat sheet.")
+        }
+    }
+
+    private var hyperparamInfo: (alpha: Double, gamma: Double, epsilonStart: Double, epsilonDecay: Double, epsilonMin: Double) {
+        switch levelType {
+        case .fetch:   return (0.7, 0.95, 0.55, 0.92, 0.02)
+        case .sit:     return (0.7, 0.90, 0.50, 0.92, 0.02)
+        case .maze:    return (0.6, 0.95, 0.60, 0.94, 0.03)
+        case .patrol:  return (0.6, 0.95, 0.60, 0.94, 0.03)
+        case .sock:    return (0.7, 0.95, 0.55, 0.92, 0.02)
+        }
+    }
+
+    private var deepDiveLevelSpecific: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ddSectionHeader("Concept: \(levelType.aiConceptTag)", icon: levelType.icon)
+            ddText(levelConceptDeepText)
+            ddText(levelStateSpaceText)
+        }
+    }
+
+    private var levelConceptDeepText: String {
+        switch levelType {
+        case .fetch:
+            return "Reward shaping augments the sparse terminal reward by adding intermediate signals. Without shaping, the agent receives reward only at the goal, making credit assignment hard across many steps. By rewarding proximity, the gradient of reward is dense — every step provides learning signal."
+        case .sit:
+            return "This is a two-action bandit problem at heart: the agent must learn that 'sit' maximises Q over 'move'. Because the state space is tiny (command active + stillness count), convergence is fast and you can directly observe Q-values diverge between the two actions as training proceeds."
+        case .maze:
+            return "Maze navigation with walls demonstrates the exploration–exploitation tradeoff clearly. High ε means the agent tries random paths — crucial early on. As ε decays, it commits to paths it has found rewarding. Too-fast decay = getting stuck in local optima. Too-slow decay = never exploiting learned knowledge."
+        case .patrol:
+            return "Patrol requires learning a state-conditional policy: the optimal action in cell X differs depending on which waypoint the agent is heading to next. This requires the full (position × target) state space, making the Q-table significantly larger than simpler lessons."
+        case .sock:
+            return "Avoidance learning works through negative reinforcement: the sock cell accumulates a deeply negative Q-value. Because γ is high, the agent propagates that penalty backwards — cells adjacent to the sock also become slightly negative, creating a natural 'repulsion field' the agent learns to navigate around."
+        }
+    }
+
+    private var levelStateSpaceText: String {
+        switch levelType {
+        case .fetch:   return "State space: 25 grid positions (5×5). Actions: up, down, left, right. Q-table size: 100 entries."
+        case .sit:     return "State space: (commandActive, stillnessCount). Actions: sit, move. Q-table size: ~12 entries."
+        case .maze:    return "State space: 36 grid positions (6×6) minus walls. Actions: 4 directions. Q-table size: ~144 entries."
+        case .patrol:  return "State space: 16 positions × 4 waypoint targets = 64 states. Actions: 4 directions. Q-table size: ~256 entries."
+        case .sock:    return "State space: 25 grid positions (5×5). Actions: up, down, left, right. Q-table size: 100 entries — but sock cell Q-values go strongly negative."
+        }
+    }
+
+    // MARK: - Deep Dive Sub-components
+
+    private func ddSectionHeader(_ title: String, icon: String) -> some View {
+        Label {
+            Text(title)
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundStyle(Theme.textPrimary)
+        } icon: {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Theme.purple)
+        }
+    }
+
+    private func ddText(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 13, weight: .regular, design: .rounded))
+            .foregroundStyle(Theme.textSecondary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func ddParam(_ name: String, _ value: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text(name)
+                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .foregroundStyle(Theme.purple)
+                .frame(minWidth: 100, alignment: .leading)
+            Text(value)
+                .font(.system(size: 12, weight: .regular, design: .rounded))
+                .foregroundStyle(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func ddTermRow(symbol: String, formalName: String, color: Color, plain: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 8) {
+                Text(symbol)
+                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                    .foregroundStyle(color)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(color.opacity(0.10), in: RoundedRectangle(cornerRadius: 5))
+                    .fixedSize()
+                Text(formalName)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Theme.textPrimary)
+            }
+            Text(plain)
+                .font(.system(size: 12, weight: .regular, design: .rounded))
+                .foregroundStyle(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.leading, 4)
+        }
+    }
+
+    private func ddHyperparam(symbol: String, formalName: String, formalRole: String, color: Color, plain: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 8) {
+                Text(symbol)
+                    .font(.system(size: 13, weight: .bold, design: .monospaced))
+                    .foregroundStyle(color)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(color.opacity(0.10), in: Capsule())
+                    .fixedSize()
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(formalName)
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(formalRole)
+                        .font(.system(size: 10, weight: .regular, design: .monospaced))
+                        .foregroundStyle(color.opacity(0.8))
+                }
+            }
+            Text(plain)
+                .font(.system(size: 12, weight: .regular, design: .rounded))
+                .foregroundStyle(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.leading, 4)
+        }
+    }
+
+    private func ddNumbered(_ n: Int, _ text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text("\(n)")
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+                .frame(width: 20, height: 20)
+                .background(Theme.purple.opacity(0.7), in: Circle())
+            Text(text)
+                .font(.system(size: 13, weight: .regular, design: .rounded))
+                .foregroundStyle(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
