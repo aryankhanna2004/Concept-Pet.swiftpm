@@ -1027,17 +1027,18 @@ struct LevelIntroView: View {
 
     private func ddTermRow(symbol: String, formalName: String, color: Color, plain: String) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            HStack(spacing: 8) {
+            HStack(alignment: .center, spacing: 8) {
                 Text(symbol)
                     .font(.system(size: 12, weight: .bold, design: .monospaced))
                     .foregroundStyle(color)
                     .padding(.horizontal, 7)
                     .padding(.vertical, 3)
                     .background(color.opacity(0.10), in: RoundedRectangle(cornerRadius: 5))
-                    .fixedSize()
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(formalName)
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
                     .foregroundStyle(Theme.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Text(plain)
                 .font(.system(size: 12, weight: .regular, design: .rounded))
@@ -1049,14 +1050,14 @@ struct LevelIntroView: View {
 
     private func ddHyperparam(symbol: String, formalName: String, formalRole: String, color: Color, plain: String) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            HStack(spacing: 8) {
+            HStack(alignment: .top, spacing: 8) {
                 Text(symbol)
                     .font(.system(size: 13, weight: .bold, design: .monospaced))
                     .foregroundStyle(color)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
                     .background(color.opacity(0.10), in: Capsule())
-                    .fixedSize()
+                    .fixedSize(horizontal: false, vertical: true)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(formalName)
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
@@ -1064,6 +1065,7 @@ struct LevelIntroView: View {
                     Text(formalRole)
                         .font(.system(size: 10, weight: .regular, design: .monospaced))
                         .foregroundStyle(color.opacity(0.8))
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             Text(plain)

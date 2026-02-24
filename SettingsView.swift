@@ -5,6 +5,7 @@ struct SettingsView: View {
     @Environment(GameState.self) private var gameState
     @Environment(\.dismiss) private var dismiss
     @State private var expandedLevel: LevelType? = nil
+    @State private var showHardResetConfirm = false
 
     var body: some View {
         NavigationStack {
@@ -17,6 +18,7 @@ struct SettingsView: View {
                         if settings.enthusiastMode {
                             rewardSection
                         }
+                        hardResetCard
                     }
                     .padding(.horizontal, 20)
                     .padding(.vertical, 20)
@@ -30,6 +32,19 @@ struct SettingsView: View {
                     Button("Done") { dismiss() }
                         .font(.system(size: 15, weight: .semibold, design: .rounded))
                 }
+            }
+            .confirmationDialog(
+                "Delete all training data?",
+                isPresented: $showHardResetConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Delete Everything & Start Fresh", role: .destructive) {
+                    gameState.hardResetAll()
+                    settings.resetRewards()
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("This removes all Q-tables, episode history, best scores, and reward settings. The pup gets a fresh 42-episode warm-up baseline and your training starts from Try 1.")
             }
         }
     }
@@ -231,6 +246,76 @@ struct SettingsView: View {
             }
             Slider(value: value, in: range, step: 0.5)
                 .tint(color)
+        }
+    }
+
+    // MARK: - Hard Reset
+
+    private var hardResetCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Theme.red.opacity(0.10))
+                        .frame(width: 42, height: 42)
+                    Image(systemName: "trash.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(Theme.red)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Hard Reset")
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text("Delete all training data and start from zero")
+                        .font(.system(size: 12, weight: .regular, design: .rounded))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+            }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 6) {
+                hardResetRow("All Q-tables wiped — pup forgets everything")
+                hardResetRow("Episode counts and best scores cleared")
+                hardResetRow("42-episode warm-up re-runs — pup starts responsive")
+                hardResetRow("HUD resets to Try 1 — warm-up is invisible")
+                hardResetRow("Reward sliders reset to defaults")
+            }
+
+            Button {
+                showHardResetConfirm = true
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text("Delete All Training Data")
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                }
+                .foregroundStyle(Theme.red)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 11)
+                .background(Theme.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .strokeBorder(Theme.red.opacity(0.25), lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(16)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private func hardResetRow(_ text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "xmark.circle.fill")
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.red.opacity(0.6))
+                .padding(.top, 1)
+            Text(text)
+                .font(.system(size: 13, weight: .regular, design: .rounded))
+                .foregroundStyle(Theme.textSecondary)
         }
     }
 

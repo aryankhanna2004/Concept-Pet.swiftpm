@@ -68,6 +68,7 @@ struct GameView: View {
                 Text("Try \(agent.totalEpisodes + 1)")
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(Theme.textSecondary)
+                    .accessibilityLabel("Training round \(agent.totalEpisodes + 1)")
 
                 Spacer()
 
@@ -75,6 +76,7 @@ struct GameView: View {
                     Label("Best \(agent.bestEpisodeSteps)", systemImage: "trophy.fill")
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
                         .foregroundStyle(Theme.orange)
+                        .accessibilityLabel("Best score: \(agent.bestEpisodeSteps) steps")
                 }
 
                 Spacer()
@@ -83,6 +85,7 @@ struct GameView: View {
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(Theme.textSecondary)
                     .monospacedDigit()
+                    .accessibilityLabel("Step \(agent.episodeSteps) of 30")
             }
 
             if settings.enthusiastMode {
@@ -107,12 +110,12 @@ struct GameView: View {
                 // Epsilon bar
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
-                        Capsule().fill(Theme.purple.opacity(0.12)).frame(height: 4)
+                        Capsule().fill(Theme.purple.opacity(0.12))
                         Capsule().fill(Theme.purple.opacity(0.6))
-                            .frame(width: geo.size.width * agent.epsilon, height: 4)
+                            .frame(width: geo.size.width * agent.epsilon)
                     }
                 }
-                .frame(width: 44, height: 8)
+                .frame(width: 44, height: 4)
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
@@ -203,6 +206,8 @@ struct GameView: View {
                         .labelStyle(.iconOnly)
                         .foregroundStyle(showBrainMap ? Theme.green : Theme.purple)
                 }
+                .accessibilityLabel(showBrainMap ? "Hide brain map" : "Show brain map")
+                .accessibilityHint("Overlays a heatmap showing which tiles the pup has learned to prefer.")
                 Menu {
                     Toggle(isOn: $showHints) {
                         Label("Show Hints", systemImage: "lightbulb")
@@ -260,6 +265,8 @@ struct GameView: View {
                         .padding(.vertical, 10)
                         .background(Theme.blue, in: RoundedRectangle(cornerRadius: 10))
                 }
+                .accessibilityLabel("Say Sit")
+                .accessibilityHint("Issues the sit command to your pup. Tap Step next to see how the pup responds.")
             }
 
             HStack(spacing: 12) {
@@ -277,6 +284,8 @@ struct GameView: View {
                 }
                 .disabled(!waiting || autoPlay)
                 .opacity((waiting && !autoPlay) ? 1 : 0.3)
+                .accessibilityLabel("Bad")
+                .accessibilityHint("Tells the pup that move was wrong. Give a penalty.")
 
                 Button { performStep() } label: {
                     Label("Step", systemImage: "play.fill")
@@ -289,6 +298,8 @@ struct GameView: View {
                 }
                 .disabled(waiting || autoPlay)
                 .opacity((!waiting && !autoPlay) ? 1 : 0.3)
+                .accessibilityLabel("Step")
+                .accessibilityHint("Makes the pup take one action using what it has learned so far.")
 
                 Button { deliverReward(settings.treat(for: levelType)) } label: {
                     HStack(spacing: 4) {
@@ -304,6 +315,8 @@ struct GameView: View {
                 }
                 .disabled(!waiting || autoPlay)
                 .opacity((waiting && !autoPlay) ? 1 : 0.3)
+                .accessibilityLabel("Treat")
+                .accessibilityHint("Rewards the pup for a good move. Reinforces that behavior.")
             }
 
         }
@@ -454,9 +467,15 @@ struct GameView: View {
         scene.performStep()
         if scene.waitingForReward {
             waiting = true
-            if showHints {
-                updateHint()
+            updateHint()
+            if !showHints {
+                hint = ""
+                hintGood = nil
             }
+            #if os(iOS)
+            let announcement = buildPositionAnnouncement()
+            UIAccessibility.post(notification: .announcement, argument: announcement)
+            #endif
         } else {
             if showHints {
                 hint = "Round done, new one coming..."
@@ -565,6 +584,46 @@ struct GameView: View {
         }
     }
 
+    private func buildPositionAnnouncement() -> String {
+        guard let gs = scene?.gameState else { return "Pup moved." }
+        switch levelType {
+        case .fetch:
+            let env = gs.fetchEnv
+            if env.isGoalReached { return "Pup reached the ball!" }
+            if env.didBounce { return "Pup hit the wall. \(env.currentDistance) tiles from the ball." }
+            return env.movedCloser
+                ? "Moved closer. \(env.currentDistance) tiles from the ball."
+                : "Moved further away. \(env.currentDistance) tiles from the ball."
+        case .sit:
+            let env = gs.sitEnv
+            if env.isGoalReached { return "Pup stayed still 3 times. Goal reached!" }
+            if env.dogMoved { return "Pup moved instead of sitting." }
+            return "Pup stayed still. \(env.stillnessCount) of \(env.requiredStillness)."
+        case .maze:
+            let env = gs.mazeEnv
+            if env.isGoalReached { return "Pup found the bone!" }
+            if env.hitWall { return "Pup hit a wall. \(env.currentDistance) tiles from the bone." }
+            return env.movedCloser
+                ? "Moved closer. \(env.currentDistance) tiles from the bone."
+                : "Moved further away. \(env.currentDistance) tiles from the bone."
+        case .patrol:
+            let env = gs.patrolEnv
+            if env.isGoalReached { return "Patrol complete!" }
+            if env.didBounce { return "Pup hit the edge." }
+            return env.movedCloser
+                ? "Closer to waypoint \(env.waypointIndex + 1). \(env.currentDistance) tiles away."
+                : "Moving away from waypoint \(env.waypointIndex + 1). \(env.currentDistance) tiles away."
+        case .sock:
+            let env = gs.sockEnv
+            if env.steppedOnSock { return "Stepped on the stinky sock!" }
+            if env.isGoalReached { return "Pup got the ball safely!" }
+            if env.didBounce { return "Pup hit the wall." }
+            return env.ballDistance < env.previousBallDistance
+                ? "Closer to the ball. \(env.ballDistance) tiles away."
+                : "Moving away from the ball. \(env.ballDistance) tiles away."
+        }
+    }
+
     private func deliverReward(_ reward: Double) {
         #if os(iOS)
         UIImpactFeedbackGenerator(style: reward > 0 ? .light : .medium).impactOccurred()
@@ -576,6 +635,9 @@ struct GameView: View {
             hintGood = nil
             tick += 1
         }
+        #if os(iOS)
+        UIAccessibility.post(notification: .announcement, argument: reward > 0 ? "Treat given. Good move noted." : "Penalty given. Bad move noted.")
+        #endif
     }
 
     private func startAuto() {

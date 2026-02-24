@@ -142,6 +142,37 @@ final class GameState {
         save()
     }
 
+    func hardResetAll() {
+        // Delete save file
+        try? FileManager.default.removeItem(at: saveURL)
+
+        // Rebuild all agents from scratch
+        fetchAgent  = RLAgent(qTable: QTable(alpha: 0.7, gamma: 0.95),  epsilon: 1.0, epsilonDecay: 0.92, epsilonMin: 0.02)
+        sitAgent    = RLAgent(qTable: QTable(alpha: 0.7, gamma: 0.90),  epsilon: 1.0, epsilonDecay: 0.92, epsilonMin: 0.02)
+        mazeAgent   = RLAgent(qTable: QTable(alpha: 0.6, gamma: 0.95),  epsilon: 1.0, epsilonDecay: 0.94, epsilonMin: 0.03)
+        patrolAgent = RLAgent(qTable: QTable(alpha: 0.6, gamma: 0.95),  epsilon: 1.0, epsilonDecay: 0.94, epsilonMin: 0.03)
+        sockAgent   = RLAgent(qTable: QTable(alpha: 0.7, gamma: 0.95),  epsilon: 1.0, epsilonDecay: 0.92, epsilonMin: 0.02)
+
+        // Reset all environments
+        fetchEnv.reset()
+        sitEnv.reset()
+        mazeEnv.reset()
+        patrolEnv.reset()
+        sockEnv.reset()
+
+        // Clear stats
+        treatCount = 0
+        noCount = 0
+        bestScores = [:]
+        unlockedLevels = Set(LevelType.allCases)
+
+        // Run the same 42-episode warm start so the pup always has a usable baseline
+        for level in LevelType.allCases {
+            warmStart(level: level)
+        }
+        save()
+    }
+
     // MARK: - Warm Start Pretraining
 
     private func warmStartIfNeeded() {
@@ -158,14 +189,9 @@ final class GameState {
     }
 
     private func warmStart(level: LevelType) {
-        let episodes: Int
-        switch level {
-        case .fetch: episodes = 90
-        case .sit: episodes = 70
-        case .maze: episodes = 140
-        case .patrol: episodes = 160
-        case .sock: episodes = 120
-        }
+        // 42 episodes seeds the Q-table with enough signal to be responsive
+        // without making the HUD look like the user already trained heavily.
+        let episodes = 42
 
         let agent = agent(for: level)
         let env = environment(for: level)
@@ -204,13 +230,23 @@ final class GameState {
             agent.endEpisode()
         }
 
-        // Keep some exploration for user-guided fine tuning after warm start.
+        // Leave enough exploration for user-guided fine-tuning after warm start.
         switch level {
-        case .fetch: agent.epsilon = 0.18
-        case .sit: agent.epsilon = 0.16
-        case .maze: agent.epsilon = 0.22
-        case .patrol: agent.epsilon = 0.24
-        case .sock: agent.epsilon = 0.20
+        case .fetch:   agent.epsilon = 0.28
+        case .sit:     agent.epsilon = 0.26
+        case .maze:    agent.epsilon = 0.32
+        case .patrol:  agent.epsilon = 0.34
+        case .sock:    agent.epsilon = 0.30
+        }
+
+        // Reset visible counters so the HUD reads "Try 1" on first open —
+        // warm-up is background prep, not user training.
+        agent.resetVisibleStats()
+
+        // Leave env in a clean ready state
+        env.reset()
+        if let sit = env as? SitEnvironment {
+            sit.issueCommand()
         }
     }
 

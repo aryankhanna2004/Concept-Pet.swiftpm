@@ -64,12 +64,12 @@ enum Theme {
             : UIColor(red: 0.55, green: 0.45, blue: 0.35, alpha: 1)
     })
 
-    static let sceneBgLight = UIColor(red: 0.94, green: 0.92, blue: 0.88, alpha: 1)
+    static let sceneBgLight = UIColor(red: 0.91, green: 0.89, blue: 0.84, alpha: 1)
     static let sceneBgDark = UIColor(red: 0.11, green: 0.11, blue: 0.12, alpha: 1)
-    static let sceneFloorLight = UIColor(red: 0.82, green: 0.90, blue: 0.74, alpha: 1)
-    static let sceneFloorDark = UIColor(red: 0.22, green: 0.30, blue: 0.20, alpha: 1)
-    static let sceneWallLight = UIColor(red: 0.55, green: 0.45, blue: 0.35, alpha: 1)
-    static let sceneWallDark = UIColor(red: 0.30, green: 0.24, blue: 0.18, alpha: 1)
+    static let sceneFloorLight = UIColor(red: 0.68, green: 0.83, blue: 0.54, alpha: 1)
+    static let sceneFloorDark = UIColor(red: 0.25, green: 0.38, blue: 0.22, alpha: 1)
+    static let sceneWallLight = UIColor(red: 0.48, green: 0.38, blue: 0.28, alpha: 1)
+    static let sceneWallDark = UIColor(red: 0.32, green: 0.26, blue: 0.19, alpha: 1)
 
     // MARK: - Typography
 

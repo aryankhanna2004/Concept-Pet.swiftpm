@@ -28,6 +28,8 @@ struct HomeView: View {
                         .frame(width: 150, height: 150)
                         .opacity(appeared ? 1 : 0)
                         .offset(y: appeared ? 0 : 16)
+                        .accessibilityLabel("Your pup")
+                        .accessibilityHint("This is your AI pet. Upload a photo to make it look like your real dog.")
 
                     Spacer().frame(height: 32)
 
@@ -54,6 +56,7 @@ struct HomeView: View {
                                     value: "\(state.treatCount)",
                                     color: Theme.green
                                 )
+                                .accessibilityLabel("\(state.treatCount) treats given")
                             }
                             if let best = state.bestScores.values.min() {
                                 statPill(
@@ -61,6 +64,7 @@ struct HomeView: View {
                                     value: "\(best) best",
                                     color: Theme.orange
                                 )
+                                .accessibilityLabel("Best score: \(best) steps")
                             }
                         }
                         .opacity(appeared ? 1 : 0)
@@ -78,6 +82,8 @@ struct HomeView: View {
                                 .padding(.vertical, 16)
                                 .background(Theme.green, in: Capsule())
                         }
+                        .accessibilityLabel("Start Training")
+                        .accessibilityHint("Opens the list of lessons where you can train your pup.")
 
                         customizePupButton
                     }

@@ -25,6 +25,8 @@ struct LevelSelectView: View {
                                 levelCard(level: level, index: index)
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel(level.title)
+                            .accessibilityHint(level.description)
                         }
                     }
                     .padding(.horizontal, 16)
@@ -74,6 +76,7 @@ struct LevelSelectView: View {
                             .padding(.horizontal, 8)
                             .padding(.vertical, 3)
                             .background(Theme.orange.opacity(0.10), in: Capsule())
+                            .accessibilityLabel("Best score: \(best) steps")
                         }
                     }
 

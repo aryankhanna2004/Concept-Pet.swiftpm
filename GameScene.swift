@@ -76,8 +76,8 @@ final class GameScene: SKScene {
 
                 let isWall = levelType == .maze && (gameState?.mazeEnv.walls.contains(GridPosition(x: col, y: row)) ?? false)
                 tile.fillColor = isWall ? Theme.sceneWallLight : Theme.sceneFloorLight
-                tile.strokeColor = SKColor(white: 0, alpha: 0.15)
-                tile.lineWidth = 1.5
+                tile.strokeColor = SKColor(white: 0, alpha: 0.28)
+                tile.lineWidth = 2.0
                 addChild(tile)
                 tileRow.append(tile)
 
@@ -344,6 +344,10 @@ final class GameScene: SKScene {
             agent.endEpisode()
         }
         env.reset()
+        // Sit needs a command active to function — issue it immediately after reset
+        if levelType == .sit, let sit = env as? SitEnvironment {
+            sit.issueCommand()
+        }
         waitingForReward = false
         pendingNextState = nil
         isAnimating = false

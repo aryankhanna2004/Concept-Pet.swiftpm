@@ -70,4 +70,14 @@ final class RLAgent {
         lastState = nil
         lastAction = nil
     }
+
+    /// Resets only the visible counters — called after warm-start so the
+    /// HUD shows "Try 1" even though background pre-training already ran.
+    func resetVisibleStats() {
+        episodeSteps = 0
+        totalEpisodes = 0
+        bestEpisodeSteps = Int.max
+        lastState = nil
+        lastAction = nil
+    }
 }
