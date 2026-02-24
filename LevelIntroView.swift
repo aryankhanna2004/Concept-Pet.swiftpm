@@ -190,8 +190,8 @@ struct LevelIntroView: View {
             }
         case .sit:
             HStack(spacing: 16) {
-                legendItem(color: Color(red: 0.30, green: 0.78, blue: 0.42), label: "Treat")
-                legendItem(color: Color(red: 0.88, green: 0.30, blue: 0.26), label: "No!")
+                legendItem(color: Color(red: 0.30, green: 0.78, blue: 0.42), label: "Sit score")
+                legendItem(color: Color(red: 0.88, green: 0.30, blue: 0.26).opacity(0.75), label: "Move score")
             }
         case .maze:
             HStack(spacing: 16) {
@@ -262,48 +262,64 @@ struct LevelIntroView: View {
     // MARK: - Sit Demo (command → action → reward loop, no grid)
 
     private var sitDemoLoop: some View {
-        let phases: [(cmd: String, action: String, reward: String, rewardColor: Color)] = [
-            ("✋ Sit!", "🐕 moves…", "👎 No!", Color(red: 0.88, green: 0.30, blue: 0.26)),
-            ("✋ Sit!", "🐶 sits!", "🦴 Treat!", Color(red: 0.30, green: 0.78, blue: 0.42)),
-            ("✋ Sit!", "🐶 sits!", "🦴 Treat!", Color(red: 0.30, green: 0.78, blue: 0.42)),
-            ("✋ Sit!", "🐶 sits!", "⭐️ Yes!", Color(red: 0.30, green: 0.78, blue: 0.42)),
-            ("✋ Sit!", "🐶 sits!", "⭐️ Yes!", Color(red: 0.30, green: 0.78, blue: 0.42)),
-        ]
-        let phase = phases[min(demoStep, phases.count - 1)]
+        // Q-values evolve: early on both are unknown, over time Sit score climbs
+        let sitScores:  [CGFloat] = [0.1, 0.25, 0.55, 0.80, 0.92]
+        let moveScores: [CGFloat] = [0.1, 0.20, 0.18, 0.12, 0.08]
+        let sitScore  = sitScores[min(demoStep, sitScores.count - 1)]
+        let moveScore = moveScores[min(demoStep, moveScores.count - 1)]
+        let isTrained = demoStep >= 3
 
-        return HStack(spacing: 0) {
-            sitPhaseBox(label: "Command", value: phase.cmd, color: levelType.accentColor.opacity(0.15))
-            Image(systemName: "chevron.right")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Theme.textSecondary)
-            sitPhaseBox(label: "Action", value: phase.action, color: Color(red: 0.88, green: 0.94, blue: 0.82))
-            Image(systemName: "chevron.right")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Theme.textSecondary)
-            sitPhaseBox(label: "Result", value: phase.reward, color: phase.rewardColor.opacity(0.2))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .strokeBorder(phase.rewardColor.opacity(0.5), lineWidth: 1.5)
+        return VStack(spacing: 10) {
+            HStack(alignment: .bottom, spacing: 16) {
+                sitScoreBar(
+                    label: "Sit 🐶",
+                    score: sitScore,
+                    color: isTrained ? Color(red: 0.30, green: 0.78, blue: 0.42) : levelType.accentColor,
+                    highlight: isTrained
                 )
+                sitScoreBar(
+                    label: "Move 🐕",
+                    score: moveScore,
+                    color: Color(red: 0.88, green: 0.30, blue: 0.26).opacity(0.75),
+                    highlight: false
+                )
+            }
+            .frame(height: 88)
+            .animation(.easeInOut(duration: 0.5), value: demoStep)
+
+            Text(isTrained ? "Pup learned: Sit = best move! 🦴" : "Learning which action scores higher…")
+                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .foregroundStyle(isTrained ? Color(red: 0.30, green: 0.78, blue: 0.42) : Theme.textSecondary)
+                .animation(.easeInOut(duration: 0.4), value: demoStep)
         }
-        .animation(.easeInOut(duration: 0.4), value: demoStep)
-        .padding(.horizontal, 4)
+        .padding(.horizontal, 8)
     }
 
-    private func sitPhaseBox(label: String, value: String, color: Color) -> some View {
-        VStack(spacing: 4) {
+    private func sitScoreBar(label: String, score: CGFloat, color: Color, highlight: Bool) -> some View {
+        VStack(spacing: 6) {
+            Text(String(format: "%.0f%%", score * 100))
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .foregroundStyle(color)
+
+            GeometryReader { geo in
+                VStack(spacing: 0) {
+                    Spacer()
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(color.opacity(0.85))
+                        .frame(height: geo.size.height * score)
+                        .overlay(
+                            highlight
+                                ? RoundedRectangle(cornerRadius: 6).strokeBorder(color, lineWidth: 1.5)
+                                : nil
+                        )
+                }
+            }
+
             Text(label)
-                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .foregroundStyle(Theme.textSecondary)
-            Text(value)
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(Theme.textPrimary)
-                .multilineTextAlignment(.center)
-                .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 70)
-        .background(color, in: RoundedRectangle(cornerRadius: 10))
     }
 
     // MARK: - Maze Demo (4×4 with wall cells and winding path)
@@ -360,46 +376,52 @@ struct LevelIntroView: View {
     private var patrolDemoRow: some View {
         let labels = ["A", "B", "C", "D"]
         let reached = demoStep  // 0 = none, 1 = A, 2 = B, 3 = C, 4 = D
+        let circleSize: CGFloat = 38
 
-        return VStack(spacing: 12) {
-            HStack(spacing: 0) {
-                ForEach(0..<4, id: \.self) { i in
-                    let done = i < reached
-                    let active = i == min(reached, 3)
-
-                    ZStack {
-                        Circle()
-                            .fill(done ? levelType.accentColor : levelType.accentColor.opacity(0.18))
-                            .frame(width: 38, height: 38)
-                            .overlay(Circle().strokeBorder(levelType.accentColor.opacity(0.5), lineWidth: 1.5))
-                            .scaleEffect(active ? 1.12 : 1.0)
-
-                        if done {
-                            Text("✓")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundStyle(.white)
-                        } else {
-                            Text(labels[i])
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
-                                .foregroundStyle(levelType.accentColor)
-                        }
-                    }
-                    .animation(.easeInOut(duration: 0.4), value: demoStep)
-
-                    if i < 3 {
-                        Rectangle()
-                            .fill(i < reached ? levelType.accentColor : levelType.accentColor.opacity(0.2))
-                            .frame(height: 2)
-                            .frame(maxWidth: .infinity)
-                            .animation(.easeInOut(duration: 0.4), value: demoStep)
-                    }
-                }
+        return GeometryReader { geo in
+            let usableWidth = geo.size.width - 16  // matches .padding(.horizontal, 8)
+            let spacing = (usableWidth - circleSize * 4) / 3
+            let circleX: (Int) -> CGFloat = { i in
+                8 + circleSize / 2 + CGFloat(i) * (circleSize + spacing)
             }
-            .padding(.horizontal, 8)
+            let waypointY: CGFloat = geo.size.height * 0.35
+            let dogY: CGFloat = waypointY + circleSize / 2 + 18
 
+            // Connector lines
+            ForEach(0..<3, id: \.self) { i in
+                let x1 = circleX(i) + circleSize / 2
+                let x2 = circleX(i + 1) - circleSize / 2
+                Rectangle()
+                    .fill(i < reached ? levelType.accentColor : levelType.accentColor.opacity(0.2))
+                    .frame(width: x2 - x1, height: 2)
+                    .position(x: (x1 + x2) / 2, y: waypointY)
+                    .animation(.easeInOut(duration: 0.4), value: demoStep)
+            }
+
+            // Waypoint circles
+            ForEach(0..<4, id: \.self) { i in
+                let done   = i < reached
+                let active = i == min(reached, 3)
+
+                ZStack {
+                    Circle()
+                        .fill(done ? levelType.accentColor : levelType.accentColor.opacity(0.18))
+                        .frame(width: circleSize, height: circleSize)
+                        .overlay(Circle().strokeBorder(levelType.accentColor.opacity(0.5), lineWidth: 1.5))
+                        .scaleEffect(active ? 1.12 : 1.0)
+
+                    Text(done ? "✓" : labels[i])
+                        .font(.system(size: done ? 16 : 14, weight: .bold, design: .rounded))
+                        .foregroundStyle(done ? .white : levelType.accentColor)
+                }
+                .position(x: circleX(i), y: waypointY)
+                .animation(.easeInOut(duration: 0.4), value: demoStep)
+            }
+
+            // Dog exactly below the active waypoint
             Text("🐕")
                 .font(.system(size: 28))
-                .offset(x: CGFloat(min(reached, 3)) * 52 - 78)
+                .position(x: circleX(min(reached, 3)), y: dogY)
                 .animation(.easeInOut(duration: 0.5), value: demoStep)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
