@@ -136,7 +136,7 @@ struct LevelIntroView: View {
         }
     }
 
-    // MARK: - Mini Q-Table Demo
+    // MARK: - Mini Demo
 
     private var miniQTableDemo: some View {
         VStack(spacing: 10) {
@@ -144,74 +144,310 @@ struct LevelIntroView: View {
                 Image(systemName: "sparkles")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(levelType.accentColor)
-                Text("Watch the pup learn")
+                Text(demoTitle)
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(Theme.textSecondary)
             }
 
-            miniGrid
+            demoContent
                 .frame(height: 140)
 
-            HStack(spacing: 16) {
-                legendItem(color: Color(red: 0.88, green: 0.94, blue: 0.82), label: "Unknown")
-                legendItem(color: Color(red: 0.30, green: 0.78, blue: 0.42), label: "Good move")
-                legendItem(color: Color(red: 0.88, green: 0.30, blue: 0.26), label: "Bad move")
-            }
-            .font(.system(size: 11, weight: .medium, design: .rounded))
+            demoLegend
+                .font(.system(size: 11, weight: .medium, design: .rounded))
         }
         .padding(14)
         .background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
     }
 
-    private var miniGrid: some View {
+    private var demoTitle: String {
+        switch levelType {
+        case .fetch:   return "Reward gets stronger closer to the ball"
+        case .sit:     return "Command → action → reward loop"
+        case .maze:    return "Exploring unknown paths"
+        case .patrol:  return "Visiting waypoints in order"
+        case .sock:    return "Learning to avoid danger"
+        }
+    }
+
+    @ViewBuilder
+    private var demoContent: some View {
+        switch levelType {
+        case .fetch:   fetchDemoGrid
+        case .sit:     sitDemoLoop
+        case .maze:    mazeDemoGrid
+        case .patrol:  patrolDemoRow
+        case .sock:    sockDemoGrid
+        }
+    }
+
+    @ViewBuilder
+    private var demoLegend: some View {
+        switch levelType {
+        case .fetch:
+            HStack(spacing: 16) {
+                legendItem(color: Color(red: 0.88, green: 0.94, blue: 0.82), label: "Far away")
+                legendItem(color: Color(red: 0.30, green: 0.78, blue: 0.42), label: "Getting closer")
+            }
+        case .sit:
+            HStack(spacing: 16) {
+                legendItem(color: Color(red: 0.30, green: 0.78, blue: 0.42), label: "Treat")
+                legendItem(color: Color(red: 0.88, green: 0.30, blue: 0.26), label: "No!")
+            }
+        case .maze:
+            HStack(spacing: 16) {
+                legendItem(color: Color(red: 0.88, green: 0.94, blue: 0.82), label: "Unknown")
+                legendItem(color: Color(red: 0.30, green: 0.78, blue: 0.42), label: "Good path")
+                legendItem(color: Color(red: 0.35, green: 0.35, blue: 0.40).opacity(0.5), label: "Wall")
+            }
+        case .patrol:
+            HStack(spacing: 16) {
+                legendItem(color: levelType.accentColor.opacity(0.3), label: "Not visited")
+                legendItem(color: levelType.accentColor, label: "Reached!")
+            }
+        case .sock:
+            HStack(spacing: 16) {
+                legendItem(color: Color(red: 0.88, green: 0.94, blue: 0.82), label: "Unknown")
+                legendItem(color: Color(red: 0.30, green: 0.78, blue: 0.42), label: "Safe path")
+                legendItem(color: Color(red: 0.88, green: 0.30, blue: 0.26), label: "Danger!")
+            }
+        }
+    }
+
+    // MARK: - Fetch Demo (3×3, reward shaping — cells warm up as pup nears ball)
+
+    // Path: 0→3→6→7→8 — moving down then right toward goal at bottom-right
+    private var fetchDemoGrid: some View {
         let size = 3
+        // reward-shaped colours: distance from goal (idx 8) drives colour
+        let distanceToGoal: [Int: Int] = [0: 4, 1: 3, 2: 2, 3: 3, 4: 2, 5: 1, 6: 2, 7: 1, 8: 0]
+        let path = [0, 3, 6, 7, 8]
+
         return GeometryReader { geo in
             let cellSize = min((geo.size.width - 20) / CGFloat(size), (geo.size.height - 4) / CGFloat(size))
             let gridW = cellSize * CGFloat(size)
             let gridH = cellSize * CGFloat(size)
-            let offsetX = (geo.size.width - gridW) / 2
-            let offsetY = (geo.size.height - gridH) / 2
+            let ox = (geo.size.width - gridW) / 2
+            let oy = (geo.size.height - gridH) / 2
 
             ForEach(0..<size, id: \.self) { row in
                 ForEach(0..<size, id: \.self) { col in
                     let idx = row * size + col
-                    let cellColor = demoColor(idx: idx, step: demoStep)
-                    let arrow = demoArrow(idx: idx, step: demoStep)
+                    let dist = distanceToGoal[idx] ?? 4
+                    let visited = path.prefix(demoStep + 1).contains(idx)
+                    let isGoal = idx == 8
+                    let isPup = path[min(demoStep, path.count - 1)] == idx
+
+                    let cellColor: Color = isGoal
+                        ? Color(red: 0.30, green: 0.78, blue: 0.42).opacity(0.75)
+                        : visited
+                            ? Color(red: 0.30 + Double(dist) * 0.12, green: 0.78 - Double(dist) * 0.06, blue: 0.30).opacity(0.35 + Double(4 - dist) * 0.08)
+                            : Color(red: 0.88, green: 0.94, blue: 0.82)
 
                     ZStack {
                         RoundedRectangle(cornerRadius: 5)
                             .fill(cellColor)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 5)
-                                    .strokeBorder(Color.black.opacity(0.06), lineWidth: 1)
-                            )
-
-                        if !arrow.isEmpty {
-                            Text(arrow)
-                                .font(.system(size: cellSize * 0.35, weight: .bold))
-                                .foregroundStyle(.white.opacity(0.9))
-                                .transition(.scale.combined(with: .opacity))
-                        }
-
-                        if demoIsPup(idx: idx, step: demoStep) {
-                            Text("🐕")
-                                .font(.system(size: cellSize * 0.4))
-                                .transition(.scale)
-                        }
-                        if demoisGoal(idx: idx) {
-                            Text(levelType == .sock ? "🎾" : levelType == .maze ? "🦴" : "🎾")
-                                .font(.system(size: cellSize * 0.35))
-                        }
-                        if demoIsDanger(idx: idx) {
-                            Text("🧦")
-                                .font(.system(size: cellSize * 0.35))
-                        }
+                            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Color.black.opacity(0.06), lineWidth: 1))
+                        if isGoal { Text("🎾").font(.system(size: cellSize * 0.35)) }
+                        if isPup  { Text("🐕").font(.system(size: cellSize * 0.40)).transition(.scale) }
                     }
                     .frame(width: cellSize - 3, height: cellSize - 3)
-                    .position(
-                        x: offsetX + CGFloat(col) * cellSize + cellSize / 2,
-                        y: offsetY + CGFloat(row) * cellSize + cellSize / 2
-                    )
+                    .position(x: ox + CGFloat(col) * cellSize + cellSize / 2,
+                              y: oy + CGFloat(row) * cellSize + cellSize / 2)
+                    .animation(.easeInOut(duration: 0.4), value: demoStep)
+                }
+            }
+        }
+    }
+
+    // MARK: - Sit Demo (command → action → reward loop, no grid)
+
+    private var sitDemoLoop: some View {
+        let phases: [(cmd: String, action: String, reward: String, rewardColor: Color)] = [
+            ("✋ Sit!", "🐕 moves…", "👎 No!", Color(red: 0.88, green: 0.30, blue: 0.26)),
+            ("✋ Sit!", "🐶 sits!", "🦴 Treat!", Color(red: 0.30, green: 0.78, blue: 0.42)),
+            ("✋ Sit!", "🐶 sits!", "🦴 Treat!", Color(red: 0.30, green: 0.78, blue: 0.42)),
+            ("✋ Sit!", "🐶 sits!", "⭐️ Yes!", Color(red: 0.30, green: 0.78, blue: 0.42)),
+            ("✋ Sit!", "🐶 sits!", "⭐️ Yes!", Color(red: 0.30, green: 0.78, blue: 0.42)),
+        ]
+        let phase = phases[min(demoStep, phases.count - 1)]
+
+        return HStack(spacing: 0) {
+            sitPhaseBox(label: "Command", value: phase.cmd, color: levelType.accentColor.opacity(0.15))
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Theme.textSecondary)
+            sitPhaseBox(label: "Action", value: phase.action, color: Color(red: 0.88, green: 0.94, blue: 0.82))
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Theme.textSecondary)
+            sitPhaseBox(label: "Result", value: phase.reward, color: phase.rewardColor.opacity(0.2))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .strokeBorder(phase.rewardColor.opacity(0.5), lineWidth: 1.5)
+                )
+        }
+        .animation(.easeInOut(duration: 0.4), value: demoStep)
+        .padding(.horizontal, 4)
+    }
+
+    private func sitPhaseBox(label: String, value: String, color: Color) -> some View {
+        VStack(spacing: 4) {
+            Text(label)
+                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .foregroundStyle(Theme.textSecondary)
+            Text(value)
+                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .foregroundStyle(Theme.textPrimary)
+                .multilineTextAlignment(.center)
+                .minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 70)
+        .background(color, in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    // MARK: - Maze Demo (4×4 with wall cells and winding path)
+
+    // Walls at indices: 1, 5, 9, 11; goal at 15; path: 0→4→8→12→13→14→15
+    private let mazeWalls: Set<Int> = [1, 5, 9, 11]
+    private let mazeGoal = 15
+    private let mazePath = [0, 4, 8, 12, 13, 14, 15]
+
+    private var mazeDemoGrid: some View {
+        let size = 4
+        return GeometryReader { geo in
+            let cellSize = min((geo.size.width - 20) / CGFloat(size), (geo.size.height - 4) / CGFloat(size))
+            let gridW = cellSize * CGFloat(size)
+            let gridH = cellSize * CGFloat(size)
+            let ox = (geo.size.width - gridW) / 2
+            let oy = (geo.size.height - gridH) / 2
+
+            ForEach(0..<size, id: \.self) { row in
+                ForEach(0..<size, id: \.self) { col in
+                    let idx = row * size + col
+                    let isWall  = mazeWalls.contains(idx)
+                    let isGoal  = idx == mazeGoal
+                    let visited = mazePath.prefix(demoStep + 1).contains(idx)
+                    let isPup   = mazePath[min(demoStep, mazePath.count - 1)] == idx
+
+                    let cellColor: Color = isWall
+                        ? Color(red: 0.35, green: 0.35, blue: 0.40).opacity(0.45)
+                        : isGoal
+                            ? Color(red: 0.30, green: 0.78, blue: 0.42).opacity(0.75)
+                            : visited
+                                ? Color(red: 0.30, green: 0.78, blue: 0.42).opacity(0.28)
+                                : Color(red: 0.88, green: 0.94, blue: 0.82)
+
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(cellColor)
+                            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Color.black.opacity(0.06), lineWidth: 1))
+                        if isWall  { Text("🚧").font(.system(size: cellSize * 0.30)) }
+                        if isGoal  { Text("🦴").font(.system(size: cellSize * 0.32)) }
+                        if isPup   { Text("🐕").font(.system(size: cellSize * 0.38)).transition(.scale) }
+                    }
+                    .frame(width: cellSize - 3, height: cellSize - 3)
+                    .position(x: ox + CGFloat(col) * cellSize + cellSize / 2,
+                              y: oy + CGFloat(row) * cellSize + cellSize / 2)
+                    .animation(.easeInOut(duration: 0.4), value: demoStep)
+                }
+            }
+        }
+    }
+
+    // MARK: - Patrol Demo (linear waypoints A→B→C→D)
+
+    private var patrolDemoRow: some View {
+        let labels = ["A", "B", "C", "D"]
+        let reached = demoStep  // 0 = none, 1 = A, 2 = B, 3 = C, 4 = D
+
+        return VStack(spacing: 12) {
+            HStack(spacing: 0) {
+                ForEach(0..<4, id: \.self) { i in
+                    let done = i < reached
+                    let active = i == min(reached, 3)
+
+                    ZStack {
+                        Circle()
+                            .fill(done ? levelType.accentColor : levelType.accentColor.opacity(0.18))
+                            .frame(width: 38, height: 38)
+                            .overlay(Circle().strokeBorder(levelType.accentColor.opacity(0.5), lineWidth: 1.5))
+                            .scaleEffect(active ? 1.12 : 1.0)
+
+                        if done {
+                            Text("✓")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundStyle(.white)
+                        } else {
+                            Text(labels[i])
+                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                .foregroundStyle(levelType.accentColor)
+                        }
+                    }
+                    .animation(.easeInOut(duration: 0.4), value: demoStep)
+
+                    if i < 3 {
+                        Rectangle()
+                            .fill(i < reached ? levelType.accentColor : levelType.accentColor.opacity(0.2))
+                            .frame(height: 2)
+                            .frame(maxWidth: .infinity)
+                            .animation(.easeInOut(duration: 0.4), value: demoStep)
+                    }
+                }
+            }
+            .padding(.horizontal, 8)
+
+            Text("🐕")
+                .font(.system(size: 28))
+                .offset(x: CGFloat(min(reached, 3)) * 52 - 78)
+                .animation(.easeInOut(duration: 0.5), value: demoStep)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Sock Demo (3×3, dog routes around danger cell)
+
+    // Danger at idx 4 (centre); goal at 8; safe detour path: 0→1→2→5→8
+    private var sockDemoGrid: some View {
+        let size = 3
+        let dangerIdx = 4
+        let goalIdx = 8
+        let safePath = [0, 1, 2, 5, 8]
+
+        return GeometryReader { geo in
+            let cellSize = min((geo.size.width - 20) / CGFloat(size), (geo.size.height - 4) / CGFloat(size))
+            let gridW = cellSize * CGFloat(size)
+            let gridH = cellSize * CGFloat(size)
+            let ox = (geo.size.width - gridW) / 2
+            let oy = (geo.size.height - gridH) / 2
+
+            ForEach(0..<size, id: \.self) { row in
+                ForEach(0..<size, id: \.self) { col in
+                    let idx = row * size + col
+                    let isDanger = idx == dangerIdx
+                    let isGoal   = idx == goalIdx
+                    let visited  = safePath.prefix(demoStep + 1).contains(idx)
+                    let isPup    = safePath[min(demoStep, safePath.count - 1)] == idx
+
+                    let cellColor: Color = isDanger
+                        ? Color(red: 0.88, green: 0.30, blue: 0.26).opacity(0.55)
+                        : isGoal
+                            ? Color(red: 0.30, green: 0.78, blue: 0.42).opacity(0.75)
+                            : visited
+                                ? Color(red: 0.30, green: 0.78, blue: 0.42).opacity(0.28)
+                                : Color(red: 0.88, green: 0.94, blue: 0.82)
+
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(cellColor)
+                            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Color.black.opacity(0.06), lineWidth: 1))
+                        if isDanger { Text("🧦").font(.system(size: cellSize * 0.35)) }
+                        if isGoal   { Text("🎾").font(.system(size: cellSize * 0.35)) }
+                        if isPup    { Text("🐕").font(.system(size: cellSize * 0.40)).transition(.scale) }
+                    }
+                    .frame(width: cellSize - 3, height: cellSize - 3)
+                    .position(x: ox + CGFloat(col) * cellSize + cellSize / 2,
+                              y: oy + CGFloat(row) * cellSize + cellSize / 2)
                     .animation(.easeInOut(duration: 0.4), value: demoStep)
                 }
             }
@@ -228,54 +464,7 @@ struct LevelIntroView: View {
         }
     }
 
-    // MARK: - Demo Logic
-
-    private let demoGoalIdx = 8
-    private var demoDangerIdx: Int? { levelType == .sock ? 4 : nil }
-
-    private func demoIsPup(idx: Int, step: Int) -> Bool {
-        let path = [0, 1, 2, 5, 8]
-        let pos = min(step, path.count - 1)
-        return path[pos] == idx
-    }
-
-    private func demoisGoal(idx: Int) -> Bool { idx == demoGoalIdx }
-    private func demoIsDanger(idx: Int) -> Bool { idx == demoDangerIdx }
-
-    private func demoColor(idx: Int, step: Int) -> Color {
-        if let danger = demoDangerIdx, idx == danger {
-            return Color(red: 0.95, green: 0.75, blue: 0.70)
-        }
-        if idx == demoGoalIdx && step >= 3 {
-            return Color(red: 0.30, green: 0.78, blue: 0.42).opacity(0.7)
-        }
-
-        let learnedGood: Set<Int> = step >= 1 ? [0] : []
-        let learnedOk: Set<Int> = step >= 2 ? [1, 2] : (step >= 1 ? [1] : [])
-        let learnedGreat: Set<Int> = step >= 3 ? [5] : []
-
-        if learnedGreat.contains(idx) {
-            return Color(red: 0.30, green: 0.78, blue: 0.42).opacity(0.5)
-        }
-        if learnedGood.contains(idx) {
-            return Color(red: 0.55, green: 0.82, blue: 0.55).opacity(0.4)
-        }
-        if learnedOk.contains(idx) {
-            return Color(red: 0.65, green: 0.85, blue: 0.65).opacity(0.3)
-        }
-        return Color(red: 0.88, green: 0.94, blue: 0.82)
-    }
-
-    private func demoArrow(idx: Int, step: Int) -> String {
-        guard step >= 2 else { return "" }
-        switch idx {
-        case 0: return "→"
-        case 1: return step >= 3 ? "→" : ""
-        case 2: return step >= 3 ? "↓" : ""
-        case 5: return step >= 4 ? "↓" : ""
-        default: return ""
-        }
-    }
+    // MARK: - Demo Timer
 
     private func startDemo() {
         demoStep = 0
