@@ -238,7 +238,9 @@ final class GameScene: SKScene {
 
         animatePetMove(action: action) {
             self.isAnimating = false
-            self.pet.setState(.idle)
+            if action != "stay" {
+                self.pet.setState(.idle)
+            }
         }
     }
 
@@ -271,7 +273,6 @@ final class GameScene: SKScene {
         let env = state.environment(for: levelType)
         let goalReached = env.isGoalReached
 
-        // Manual feedback should be authoritative. Add a terminal bonus so "Treat at goal" converges quickly.
         let shapedReward = pendingAutoReward
         var trainingReward = userReward
         if userReward > 0, shapedReward > 0 {
@@ -284,16 +285,21 @@ final class GameScene: SKScene {
         }
         agent.receiveReward(trainingReward, nextState: nextState, availableActions: env.availableActions, isTerminal: goalReached)
 
+        let hasReaction: Bool
         if userReward > 0 {
             state.treatCount += 1
             pet.setState(.happy)
             showTreatParticle()
+            hasReaction = true
         } else if userReward < 0 {
             state.noCount += 1
             pet.setState(.sad)
+            hasReaction = true
+        } else {
+            hasReaction = false
         }
 
-        finishReward(env: env)
+        finishReward(env: env, keepReaction: hasReaction)
     }
 
     func deliverAutoReward() {
@@ -313,13 +319,15 @@ final class GameScene: SKScene {
         finishReward(env: env)
     }
 
-    private func finishReward(env: any RLEnvironment) {
+    private func finishReward(env: any RLEnvironment, keepReaction: Bool = false) {
         let goalReached = env.isGoalReached
 
         waitingForReward = false
         pendingNextState = nil
 
-        pet.setState(.idle)
+        if !keepReaction {
+            pet.setState(.idle)
+        }
         updateHeatmap()
 
         if goalReached {
@@ -404,14 +412,17 @@ final class GameScene: SKScene {
 
     private func showTreatParticle() {
         let treat = SKLabelNode(text: "🦴")
-        treat.fontSize = 20
-        treat.position = CGPoint(x: pet.position.x, y: pet.position.y + 25)
+        treat.fontSize = tileSize * 0.35
+        treat.position = CGPoint(x: pet.position.x + tileSize * 0.3, y: pet.position.y - tileSize * 0.15)
         treat.zPosition = 20
+        treat.alpha = 0
         addChild(treat)
 
-        let rise = SKAction.moveBy(x: 0, y: 25, duration: 0.4)
-        let fade = SKAction.fadeOut(withDuration: 0.4)
-        treat.run(.group([rise, fade])) {
+        let appear = SKAction.fadeIn(withDuration: 0.15)
+        let drop = SKAction.moveBy(x: -tileSize * 0.15, y: -tileSize * 0.1, duration: 0.2)
+        let wait = SKAction.wait(forDuration: 0.6)
+        let fade = SKAction.fadeOut(withDuration: 0.3)
+        treat.run(.sequence([appear, drop, wait, fade])) {
             treat.removeFromParent()
         }
     }

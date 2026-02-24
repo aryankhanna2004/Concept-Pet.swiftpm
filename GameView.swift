@@ -380,17 +380,100 @@ struct GameView: View {
     }
 
     private func updateHint() {
-        guard let scene else { return }
+        guard let scene, let gs = scene.gameState else { return }
         let r = scene.pendingAutoReward
-        if r >= 5.0 {
-            hint = "Found it! Tap Good!"
-            hintGood = true
-        } else if r > 0 {
-            hint = "Getting closer! Tap Good!"
-            hintGood = true
-        } else {
-            hint = "Wrong way! Tap Bad!"
-            hintGood = false
+
+        switch levelType {
+        case .fetch:
+            let env = gs.fetchEnv
+            if env.isGoalReached {
+                hint = "Fetched the ball! Tap Treat!"
+                hintGood = true
+            } else if env.didBounce {
+                hint = "Bonked the wall! Tap Bad!"
+                hintGood = false
+            } else if env.movedCloser {
+                hint = "\(env.currentDistance) tiles away — getting closer! Treat!"
+                hintGood = true
+            } else {
+                hint = "Moved further from the ball. Bad!"
+                hintGood = false
+            }
+
+        case .sit:
+            let env = gs.sitEnv
+            if env.isGoalReached {
+                hint = "Stayed still 3 times — good dog! Treat!"
+                hintGood = true
+            } else if !env.commandActive {
+                hint = "Tap \"Sit!\" first to give the command."
+                hintGood = nil
+            } else if env.dogMoved {
+                hint = "Pup moved instead of sitting! Bad!"
+                hintGood = false
+            } else {
+                hint = "Stayed still! (\(env.stillnessCount)/\(env.requiredStillness)) Treat!"
+                hintGood = true
+            }
+
+        case .maze:
+            let env = gs.mazeEnv
+            if env.isGoalReached {
+                hint = "Found the bone! Tap Treat!"
+                hintGood = true
+            } else if env.hitWall {
+                hint = "Hit a wall! Tap Bad!"
+                hintGood = false
+            } else if env.movedCloser {
+                hint = "\(env.currentDistance) tiles to bone — closer! Treat!"
+                hintGood = true
+            } else {
+                hint = "Moved away from the bone. Bad!"
+                hintGood = false
+            }
+
+        case .patrol:
+            let env = gs.patrolEnv
+            if env.isGoalReached {
+                hint = "Full patrol done! Treat!"
+                hintGood = true
+            } else if r >= 5.0 {
+                hint = "Reached waypoint \(env.waypointsVisited)! Treat!"
+                hintGood = true
+            } else if env.didBounce {
+                hint = "Hit the edge! Bad!"
+                hintGood = false
+            } else if env.movedCloser {
+                hint = "\(env.currentDistance) to waypoint \(env.waypointIndex + 1) — closer! Treat!"
+                hintGood = true
+            } else {
+                hint = "Wrong direction for waypoint \(env.waypointIndex + 1). Bad!"
+                hintGood = false
+            }
+
+        case .sock:
+            let env = gs.sockEnv
+            if env.steppedOnSock {
+                hint = "Stepped on the stinky sock! Bad!"
+                hintGood = false
+            } else if env.isGoalReached {
+                hint = "Got the ball safely! Treat!"
+                hintGood = true
+            } else if env.didBounce {
+                hint = "Bonked the wall! Bad!"
+                hintGood = false
+            } else if env.ballDistance < env.previousBallDistance {
+                if env.sockDistance <= 1 {
+                    hint = "Closer to ball but near the sock! Careful..."
+                    hintGood = nil
+                } else {
+                    hint = "\(env.ballDistance) to ball — closer! Treat!"
+                    hintGood = true
+                }
+            } else {
+                hint = "Moved away from the ball. Bad!"
+                hintGood = false
+            }
         }
     }
 

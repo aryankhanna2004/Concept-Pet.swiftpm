@@ -5,6 +5,8 @@ struct LevelIntroView: View {
     @State private var appeared = false
     @State private var demoStep = 0
     @State private var demoTimer: Timer?
+    @State private var heroTick = false
+    @State private var heroTimer: Timer?
 
     var body: some View {
         ZStack {
@@ -80,8 +82,12 @@ struct LevelIntroView: View {
         .onAppear {
             withAnimation(.easeOut(duration: 0.5)) { appeared = true }
             startDemo()
+            startHero()
         }
-        .onDisappear { demoTimer?.invalidate() }
+        .onDisappear {
+            demoTimer?.invalidate()
+            heroTimer?.invalidate()
+        }
     }
 
     // MARK: - Icon Header
@@ -90,17 +96,43 @@ struct LevelIntroView: View {
         ZStack {
             Circle()
                 .fill(levelType.accentColor.opacity(0.08))
-                .frame(width: 100, height: 100)
+                .frame(width: 120, height: 120)
 
             Circle()
                 .fill(levelType.accentColor.opacity(0.05))
-                .frame(width: 130, height: 130)
+                .frame(width: 150, height: 150)
                 .scaleEffect(appeared ? 1.0 : 0.8)
-                .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: appeared)
+                .animation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true), value: appeared)
 
-            Image(systemName: levelType.icon)
-                .font(.system(size: 40))
-                .foregroundStyle(levelType.accentColor)
+            heroScene
+        }
+        .frame(width: 150, height: 150)
+    }
+
+    @ViewBuilder
+    private var heroScene: some View {
+        switch levelType {
+        case .fetch:
+            FetchHeroView(tick: heroTick, accentColor: levelType.accentColor)
+        case .sit:
+            SitHeroView(tick: heroTick, accentColor: levelType.accentColor)
+        case .maze:
+            MazeHeroView(tick: heroTick, accentColor: levelType.accentColor)
+        case .patrol:
+            PatrolHeroView(tick: heroTick, accentColor: levelType.accentColor)
+        case .sock:
+            SockHeroView(tick: heroTick, accentColor: levelType.accentColor)
+        }
+    }
+
+    private func startHero() {
+        heroTick = false
+        heroTimer = Timer.scheduledTimer(withTimeInterval: 0.9, repeats: true) { _ in
+            Task { @MainActor in
+                withAnimation(.easeInOut(duration: 0.5)) {
+                    heroTick.toggle()
+                }
+            }
         }
     }
 
@@ -452,6 +484,147 @@ struct LevelIntroView: View {
                 .font(.system(size: 15, weight: .regular, design: .rounded))
                 .foregroundStyle(Theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+// MARK: - Hero Scene Views
+
+private struct FetchHeroView: View {
+    let tick: Bool
+    let accentColor: Color
+
+    var body: some View {
+        ZStack {
+            Text("🎾")
+                .font(.system(size: 30))
+                .offset(x: tick ? 18 : 22, y: -18)
+                .animation(.easeInOut(duration: 0.5), value: tick)
+
+            Text("🐕")
+                .font(.system(size: 36))
+                .offset(x: tick ? 4 : -10, y: 10)
+                .scaleEffect(x: 1, y: 1)
+                .animation(.easeInOut(duration: 0.5), value: tick)
+
+            Text("💨")
+                .font(.system(size: 16))
+                .offset(x: tick ? -14 : -20, y: 14)
+                .opacity(tick ? 0.8 : 0.3)
+                .animation(.easeInOut(duration: 0.5), value: tick)
+        }
+    }
+}
+
+private struct SitHeroView: View {
+    let tick: Bool
+    let accentColor: Color
+
+    var body: some View {
+        ZStack {
+            Text("✋")
+                .font(.system(size: 28))
+                .offset(x: -20, y: -14)
+                .scaleEffect(tick ? 1.1 : 0.9)
+                .animation(.easeInOut(duration: 0.5), value: tick)
+
+            Text(tick ? "🐶" : "🐕")
+                .font(.system(size: 36))
+                .offset(x: 12, y: 10)
+                .animation(.easeInOut(duration: 0.5), value: tick)
+
+            Text(tick ? "⭐️" : "")
+                .font(.system(size: 18))
+                .offset(x: 20, y: -18)
+                .opacity(tick ? 1 : 0)
+                .animation(.easeInOut(duration: 0.3), value: tick)
+        }
+    }
+}
+
+private struct MazeHeroView: View {
+    let tick: Bool
+    let accentColor: Color
+
+    var body: some View {
+        ZStack {
+            Text("🦴")
+                .font(.system(size: 24))
+                .offset(x: 24, y: -20)
+                .scaleEffect(tick ? 1.05 : 0.95)
+                .animation(.easeInOut(duration: 0.5), value: tick)
+
+            Text("🐕")
+                .font(.system(size: 32))
+                .offset(x: tick ? 4 : -8, y: tick ? 4 : -4)
+                .animation(.easeInOut(duration: 0.5), value: tick)
+
+            Text("?")
+                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .foregroundStyle(accentColor)
+                .offset(x: tick ? -22 : -16, y: -18)
+                .opacity(tick ? 0.3 : 0.9)
+                .animation(.easeInOut(duration: 0.5), value: tick)
+        }
+    }
+}
+
+private struct PatrolHeroView: View {
+    let tick: Bool
+    let accentColor: Color
+
+    var body: some View {
+        ZStack {
+            ForEach(0..<3, id: \.self) { i in
+                Circle()
+                    .fill(accentColor.opacity(0.5))
+                    .frame(width: 10, height: 10)
+                    .offset(x: CGFloat(i - 1) * 24, y: -22)
+            }
+
+            Path { path in
+                path.move(to: CGPoint(x: -24, y: -17))
+                path.addLine(to: CGPoint(x: 0, y: -17))
+                path.addLine(to: CGPoint(x: 24, y: -17))
+            }
+            .stroke(accentColor.opacity(0.3), style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+            .frame(width: 80, height: 10)
+            .offset(y: -14)
+
+            Text("🐕")
+                .font(.system(size: 32))
+                .offset(x: tick ? 0 : -24, y: 8)
+                .animation(.easeInOut(duration: 0.5), value: tick)
+        }
+    }
+}
+
+private struct SockHeroView: View {
+    let tick: Bool
+    let accentColor: Color
+
+    var body: some View {
+        ZStack {
+            Text("🎾")
+                .font(.system(size: 26))
+                .offset(x: 24, y: -18)
+
+            Text("🧦")
+                .font(.system(size: 22))
+                .offset(x: 0, y: 12)
+                .scaleEffect(tick ? 1.1 : 0.9)
+                .animation(.easeInOut(duration: 0.5), value: tick)
+
+            Text("🐕")
+                .font(.system(size: 32))
+                .offset(x: tick ? -18 : -26, y: -8)
+                .animation(.easeInOut(duration: 0.5), value: tick)
+
+            Text("⚠️")
+                .font(.system(size: 14))
+                .offset(x: 4, y: 28)
+                .opacity(tick ? 0.9 : 0.4)
+                .animation(.easeInOut(duration: 0.5), value: tick)
         }
     }
 }

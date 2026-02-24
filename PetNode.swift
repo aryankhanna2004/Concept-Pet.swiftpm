@@ -85,27 +85,32 @@ final class PetNode: SKNode {
 
     private func playHappy() {
         guard let row2 = frames[.happy], row2.count >= 2 else { playIdle(); return }
-        let eatFrames = Array(row2[0...1])
-        let anim = SKAction.animate(with: eatFrames, timePerFrame: 0.15)
-        sprite.run(.repeat(anim, count: 3)) { [weak self] in
+        let eatAnim = SKAction.animate(with: row2, timePerFrame: 0.18)
+        sprite.run(.repeat(eatAnim, count: 2)) { [weak self] in
             self?.animationState = .idle
             self?.playIdle()
         }
         let bounce = SKAction.sequence([
-            .moveBy(x: 0, y: 6, duration: 0.1),
-            .moveBy(x: 0, y: -6, duration: 0.1)
+            .moveBy(x: 0, y: 4, duration: 0.08),
+            .moveBy(x: 0, y: -4, duration: 0.08)
         ])
-        run(.repeat(bounce, count: 3), withKey: ActionKey.internalMotion)
+        run(.repeat(bounce, count: row2.count * 2), withKey: ActionKey.internalMotion)
     }
 
     private func playSad() {
         guard let row3 = frames[.sad], !row3.isEmpty else { playIdle(); return }
-        let sadSequence = SKAction.animate(with: row3, timePerFrame: 0.25)
-        let hold = SKAction.wait(forDuration: 0.5)
-        sprite.run(.sequence([sadSequence, hold])) { [weak self] in
+        let sadAnim = SKAction.animate(with: row3, timePerFrame: 0.25)
+        let hold = SKAction.wait(forDuration: 0.6)
+        sprite.run(.sequence([sadAnim, hold])) { [weak self] in
             self?.animationState = .idle
             self?.playIdle()
         }
+        let droop = SKAction.sequence([
+            .moveBy(x: 0, y: -4, duration: 0.3),
+            .wait(forDuration: row3.count > 1 ? Double(row3.count) * 0.25 + 0.3 : 0.8),
+            .moveBy(x: 0, y: 4, duration: 0.3)
+        ])
+        run(droop, withKey: ActionKey.internalMotion)
     }
 
     // MARK: - Fallback shape dog
