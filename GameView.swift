@@ -30,12 +30,20 @@ struct GameView: View {
                 if let scene {
                     SpriteView(scene: scene)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .shadow(color: .black.opacity(0.08), radius: 8, y: 2)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
                 }
 
-                controls.padding(.horizontal, 12).padding(.bottom, 6)
+                controls
+                    .padding(.horizontal, 14)
+                    .padding(.top, 10)
+                    .padding(.bottom, 8)
+                    .background(
+                        Color(red: 0.94, green: 0.93, blue: 0.90)
+                            .shadow(.drop(color: .black.opacity(0.10), radius: 10, y: -3))
+                    )
             }
 
             if showOnboarding { onboarding }
@@ -56,21 +64,21 @@ struct GameView: View {
     private var hud: some View {
         HStack {
             Text("Try \(agent.totalEpisodes + 1)")
-                .font(Theme.caption)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(Theme.textSecondary)
 
             Spacer()
 
             if agent.bestEpisodeSteps < Int.max {
                 Label("Best \(agent.bestEpisodeSteps)", systemImage: "trophy.fill")
-                    .font(Theme.caption)
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(Theme.orange)
             }
 
             Spacer()
 
             Text("\(agent.episodeSteps)/30")
-                .font(Theme.caption)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(Theme.textSecondary)
                 .monospacedDigit()
         }
@@ -168,7 +176,10 @@ struct GameView: View {
 
             HStack(spacing: 12) {
                 Button { deliverReward(-1.0) } label: {
-                    Label("Bad", systemImage: "xmark")
+                    HStack(spacing: 4) {
+                        Text("👎")
+                        Text("Bad")
+                    }
                         .font(Theme.body)
                         .fontWeight(.semibold)
                         .foregroundStyle(.white)
@@ -192,7 +203,10 @@ struct GameView: View {
                 .opacity((!waiting && !autoPlay) ? 1 : 0.3)
 
                 Button { deliverReward(1.0) } label: {
-                    Label("Treat", systemImage: "checkmark")
+                    HStack(spacing: 4) {
+                        Text("🦴")
+                        Text("Treat")
+                    }
                         .font(Theme.body)
                         .fontWeight(.semibold)
                         .foregroundStyle(.white)
@@ -205,7 +219,7 @@ struct GameView: View {
             }
 
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 2)
     }
 
     // MARK: - Onboarding
@@ -255,7 +269,7 @@ struct GameView: View {
 
     private var steps: [String] {
         switch levelType {
-        case .fetch: return ["Tap Step -- pup picks a direction", "Hint shows if it moved closer or not", "Tap Good or Bad to teach it"]
+        case .fetch: return ["Tap Step, pup picks a direction", "See if it moved closer or not", "Tap Good or Bad to teach it"]
         case .sit: return ["Tap Sit to give the command", "Tap Step to see what pup does", "Stayed still? Good! Moved? Bad!"]
         case .maze: return ["Pup must find the bone", "Reward closer, punish wrong turns", "Watch it learn the path!"]
         case .patrol: return ["Pup must visit waypoints in order", "Reward moves toward the next point", "It must learn a full route!"]
@@ -300,10 +314,10 @@ struct GameView: View {
                         Text("Try again")
                             .font(Theme.body)
                             .fontWeight(.semibold)
-                            .foregroundStyle(Theme.textPrimary)
+                            .foregroundStyle(.white.opacity(0.85))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
-                            .background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
+                            .background(Color.white.opacity(0.15), in: RoundedRectangle(cornerRadius: 10))
                     }
 
                     Button {
@@ -323,7 +337,7 @@ struct GameView: View {
                 .padding(.horizontal, 8)
             }
             .padding(28)
-            .background(Theme.card.opacity(0.95), in: RoundedRectangle(cornerRadius: 20))
+            .background(Color(red: 0.13, green: 0.13, blue: 0.15).opacity(0.95), in: RoundedRectangle(cornerRadius: 20))
             .padding(24)
         }
     }
@@ -357,7 +371,7 @@ struct GameView: View {
             }
         } else {
             if showHints {
-                hint = "Round over, starting new one..."
+                hint = "Round done, new one coming..."
                 hintGood = nil
             }
             waiting = false
@@ -372,10 +386,10 @@ struct GameView: View {
             hint = "Found it! Tap Good!"
             hintGood = true
         } else if r > 0 {
-            hint = "Getting closer -- tap Good!"
+            hint = "Getting closer! Tap Good!"
             hintGood = true
         } else {
-            hint = "Wrong way -- tap Bad!"
+            hint = "Wrong way! Tap Bad!"
             hintGood = false
         }
     }
@@ -387,7 +401,7 @@ struct GameView: View {
         scene?.deliverReward(reward)
         waiting = false
         if showHints {
-            hint = reward > 0 ? "Treat given! Pup will remember this." : "No treat. Pup will avoid this."
+            hint = reward > 0 ? "Nice! Treat given." : "Nope! Pup noted that."
             hintGood = nil
             tick += 1
         }
@@ -430,7 +444,7 @@ struct GameView: View {
         autoTask?.cancel()
         autoTask = nil
         if showHints {
-            hint = "Your turn! Tap Step."
+            hint = "Go ahead, tap Step."
             hintGood = nil
         }
     }

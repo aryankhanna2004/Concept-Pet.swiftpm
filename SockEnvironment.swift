@@ -103,7 +103,14 @@ final class SockEnvironment: RLEnvironment {
         }
 
         dogPosition = randomPos()
-        ballPosition = randomPos()
+
+        var ball: GridPosition
+        repeat {
+            ball = GridPosition(x: Int.random(in: 0..<gridSize), y: Int.random(in: 0..<gridSize))
+        } while positions.contains(ball) || ball.manhattan(to: dogPosition) < 2
+        positions.insert(ball)
+        ballPosition = ball
+
         sockPosition = randomPos()
 
         previousBallDistance = ballDistance

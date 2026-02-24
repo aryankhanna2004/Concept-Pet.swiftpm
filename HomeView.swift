@@ -1,10 +1,17 @@
 import SwiftUI
 import UIKit
+import PhotosUI
 
 struct HomeView: View {
     @Environment(GameState.self) private var state
     @State private var pulse: CGFloat = 1.0
     @State private var appeared = false
+    @State private var showPlayground = false
+    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var dogSourceImage: Image?
+    @State private var generatedPetURL: URL?
+    @State private var generatedPetImage: UIImage?
+    @State private var showPlaygroundUnavailable = false
 
     var body: some View {
         NavigationStack {
@@ -60,13 +67,17 @@ struct HomeView: View {
                     Spacer()
                     Spacer()
 
-                    NavigationLink(destination: LevelSelectView()) {
-                        Text("Start Training")
-                            .font(.system(size: 17, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(Theme.green, in: Capsule())
+                    VStack(spacing: 12) {
+                        NavigationLink(destination: LevelSelectView()) {
+                            Text("Start Training")
+                                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(Theme.green, in: Capsule())
+                        }
+
+                        customizePupButton
                     }
                     .padding(.horizontal, 48)
                     .opacity(appeared ? 1 : 0)
@@ -83,9 +94,75 @@ struct HomeView: View {
                 withAnimation(.easeOut(duration: 0.7)) {
                     appeared = true
                 }
+                loadSavedPet()
+            }
+            .modifier(ImagePlaygroundModifier(
+                isPresented: $showPlayground,
+                sourceImage: dogSourceImage,
+                onCompletion: handleGeneratedImage
+            ))
+            .onChange(of: selectedPhoto) { _, item in
+                Task { await loadPhoto(item) }
+            }
+            .alert("Image Playground Unavailable", isPresented: $showPlaygroundUnavailable) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("Turn on Apple Intelligence in Settings > Apple Intelligence & Siri, then try again.")
             }
         }
     }
+
+    // MARK: - Customize Button
+
+    @ViewBuilder
+    private var customizePupButton: some View {
+        if #available(iOS 18.1, *) {
+            CustomizePupButtonContent(
+                selectedPhoto: $selectedPhoto,
+                showPlaygroundUnavailable: $showPlaygroundUnavailable
+            )
+        }
+    }
+
+    // MARK: - Photo Loading
+
+    private func loadPhoto(_ item: PhotosPickerItem?) async {
+        guard let item else { return }
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              let uiImage = UIImage(data: data) else { return }
+        dogSourceImage = Image(uiImage: uiImage)
+        showPlayground = true
+    }
+
+    // MARK: - Generated Image Handling
+
+    private func handleGeneratedImage(url: URL) {
+        guard let data = try? Data(contentsOf: url),
+              let img = UIImage(data: data) else { return }
+        generatedPetImage = img
+        generatedPetURL = url
+        savePet(img)
+    }
+
+    private var savedPetURL: URL {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        return docs.appendingPathComponent("custom_pet.png")
+    }
+
+    private func savePet(_ image: UIImage) {
+        if let data = image.pngData() {
+            try? data.write(to: savedPetURL)
+        }
+    }
+
+    private func loadSavedPet() {
+        if let data = try? Data(contentsOf: savedPetURL),
+           let img = UIImage(data: data) {
+            generatedPetImage = img
+        }
+    }
+
+    // MARK: - Stat Pill
 
     private func statPill(icon: String, value: String, color: Color) -> some View {
         HStack(spacing: 5) {
@@ -100,6 +177,8 @@ struct HomeView: View {
         .background(color.opacity(0.10), in: Capsule())
     }
 
+    // MARK: - Dog Avatar
+
     private var dogAvatar: some View {
         ZStack {
             Circle()
@@ -110,12 +189,21 @@ struct HomeView: View {
                 .fill(Theme.green.opacity(0.05))
                 .frame(width: 120, height: 120)
 
-            spriteImage
-                .interpolation(.none)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 88, height: 88)
-                .scaleEffect(pulse)
+            if let custom = generatedPetImage {
+                Image(uiImage: custom)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 100, height: 100)
+                    .clipShape(Circle())
+                    .scaleEffect(pulse)
+            } else {
+                spriteImage
+                    .interpolation(.none)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 88, height: 88)
+                    .scaleEffect(pulse)
+            }
         }
     }
 
@@ -133,5 +221,25 @@ struct HomeView: View {
             return UIImage(contentsOfFile: url.path)
         }
         return nil
+    }
+}
+
+// MARK: - Image Playground Modifier
+
+private struct ImagePlaygroundModifier: ViewModifier {
+    @Binding var isPresented: Bool
+    let sourceImage: Image?
+    let onCompletion: (URL) -> Void
+
+    func body(content: Content) -> some View {
+        if #available(iOS 18.1, *) {
+            PlaygroundSheetWrapper(
+                isPresented: $isPresented,
+                sourceImage: sourceImage,
+                onCompletion: onCompletion
+            ) { content }
+        } else {
+            content
+        }
     }
 }

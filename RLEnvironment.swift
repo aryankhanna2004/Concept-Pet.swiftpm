@@ -16,6 +16,10 @@ struct GridPosition: Equatable, Hashable {
         case .right: return GridPosition(x: x + 1, y: y)
         }
     }
+
+    func manhattan(to other: GridPosition) -> Int {
+        abs(x - other.x) + abs(y - other.y)
+    }
 }
 
 @MainActor

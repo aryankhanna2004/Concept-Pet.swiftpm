@@ -5,7 +5,6 @@ struct LevelIntroView: View {
     @State private var appeared = false
     @State private var demoStep = 0
     @State private var demoTimer: Timer?
-    @State private var showConceptDetail = false
 
     var body: some View {
         ZStack {
@@ -29,10 +28,10 @@ struct LevelIntroView: View {
                     Spacer().frame(height: 6)
 
                     Text(levelType.aiConceptTag)
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundStyle(levelType.accentColor)
                         .padding(.horizontal, 12)
-                        .padding(.vertical, 4)
+                        .padding(.vertical, 5)
                         .background(levelType.accentColor.opacity(0.10), in: Capsule())
                         .opacity(appeared ? 1 : 0)
 
@@ -46,18 +45,8 @@ struct LevelIntroView: View {
                     Spacer().frame(height: 20)
 
                     VStack(alignment: .leading, spacing: 14) {
-                        conceptCard(
-                            title: "What is Q-Learning?",
-                            body: "Your pup has a brain (a table of values). Each cell says \"how good is it to go left, right, up, or down from here?\" Every time you give a treat or say bad, those values update. Over time the pup learns the best move for every spot.",
-                            icon: "brain"
-                        )
-
-                        conceptCard(
-                            title: conceptTitle,
-                            body: conceptBody,
-                            icon: conceptIcon
-                        )
-
+                        qLearningCard
+                        conceptBulletCard
                         howToPlayCard
                     }
                     .padding(.horizontal, 20)
@@ -121,10 +110,10 @@ struct LevelIntroView: View {
         VStack(spacing: 10) {
             HStack(spacing: 4) {
                 Image(systemName: "sparkles")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(levelType.accentColor)
                 Text("Watch the pup learn")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(Theme.textSecondary)
             }
 
@@ -136,7 +125,7 @@ struct LevelIntroView: View {
                 legendItem(color: Color(red: 0.30, green: 0.78, blue: 0.42), label: "Good move")
                 legendItem(color: Color(red: 0.88, green: 0.30, blue: 0.26), label: "Bad move")
             }
-            .font(.system(size: 10, weight: .medium, design: .rounded))
+            .font(.system(size: 11, weight: .medium, design: .rounded))
         }
         .padding(14)
         .background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
@@ -267,30 +256,70 @@ struct LevelIntroView: View {
         }
     }
 
-    // MARK: - Concept content per level
+    // MARK: - Q-Learning Card
+
+    private var qLearningCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label {
+                Text("How your pup thinks")
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+            } icon: {
+                Image(systemName: "brain")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(levelType.accentColor)
+            }
+            .foregroundStyle(Theme.textPrimary)
+
+            VStack(alignment: .leading, spacing: 8) {
+                bulletRow(emoji: "🧠", text: "The pup has a brain, like a big cheat sheet of moves")
+                bulletRow(emoji: "📍", text: "For every spot on the grid, it remembers: \"which direction worked best?\"")
+                bulletRow(emoji: "🦴", text: "You give a treat → that move gets a higher score")
+                bulletRow(emoji: "👎", text: "You say bad → that move gets a lower score")
+                bulletRow(emoji: "🎯", text: "Over time, the pup just follows the highest scores")
+            }
+
+            Text("That's Q-Learning! Trial, error, and treats.")
+                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .foregroundStyle(levelType.accentColor)
+                .padding(.top, 2)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    // MARK: - Concept Bullet Card
+
+    private var conceptBulletCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label {
+                Text(conceptTitle)
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+            } icon: {
+                Image(systemName: conceptIcon)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(levelType.accentColor)
+            }
+            .foregroundStyle(Theme.textPrimary)
+
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(conceptBullets, id: \.self) { bullet in
+                    bulletRow(emoji: conceptEmoji, text: bullet)
+                }
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 14))
+    }
 
     private var conceptTitle: String {
         switch levelType {
         case .fetch: return "Reward Shaping"
         case .sit: return "Reinforcement"
-        case .maze: return "Exploration vs Exploitation"
+        case .maze: return "Explore vs Exploit"
         case .patrol: return "Policy Learning"
         case .sock: return "Avoidance Learning"
-        }
-    }
-
-    private var conceptBody: String {
-        switch levelType {
-        case .fetch:
-            return "Instead of only rewarding at the end, you give small treats for getting closer. This helps the pup learn faster because it gets feedback every step, not just when it reaches the ball."
-        case .sit:
-            return "The pup tries an action (sit or move). You tell it \"good\" or \"bad.\" It remembers this and next time it's more likely to pick the action you rewarded. That's reinforcement."
-        case .maze:
-            return "Should the pup try a new path it hasn't explored, or stick with one that worked before? Early on, exploring is key. Later, it should exploit what it learned. This balance is called epsilon-greedy."
-        case .patrol:
-            return "The pup needs to learn a sequence: visit A, then B, then C. The right move depends on where it is AND which checkpoint is next. It must learn a full plan, not just one move."
-        case .sock:
-            return "The pup has to reach the ball, but there's a stinky sock on the grid. Stepping on it gives a big penalty. The pup must learn to chase the goal while avoiding danger — just like how AI learns to dodge obstacles."
         }
     }
 
@@ -304,62 +333,90 @@ struct LevelIntroView: View {
         }
     }
 
-    // MARK: - Cards
-
-    private func conceptCard(title: String, body: String, icon: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(levelType.accentColor)
-                .frame(width: 36, height: 36)
-                .background(levelType.accentColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Theme.textPrimary)
-                Text(body)
-                    .font(.system(size: 13, weight: .regular, design: .rounded))
-                    .foregroundStyle(Theme.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+    private var conceptEmoji: String {
+        switch levelType {
+        case .fetch: return "💡"
+        case .sit: return "✋"
+        case .maze: return "🔍"
+        case .patrol: return "🗺️"
+        case .sock: return "⚠️"
         }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
     }
 
+    private var conceptBullets: [String] {
+        switch levelType {
+        case .fetch: return [
+            "Don't just reward at the finish line",
+            "Give small treats for getting closer each step",
+            "This way the pup gets feedback constantly",
+            "Faster learning = happier pup!"
+        ]
+        case .sit: return [
+            "The pup picks an action: sit or move",
+            "You tell it good or bad",
+            "It remembers which action got the treat",
+            "Next time, it picks the winning action more often"
+        ]
+        case .maze: return [
+            "Should the pup try a brand new path?",
+            "Or stick with one that worked before?",
+            "Early on → explore everything!",
+            "Later → use what it learned"
+        ]
+        case .patrol: return [
+            "The pup must visit A → B → C in order",
+            "The best move depends on where it is AND where it's going",
+            "It can't just learn one trick",
+            "It needs a full plan for every spot"
+        ]
+        case .sock: return [
+            "Goal: reach the ball 🎾",
+            "Danger: the stinky sock 🧦 is a trap!",
+            "Stepping on the sock = big penalty",
+            "The pup learns to go around it, not through it"
+        ]
+        }
+    }
+
+    // MARK: - How To Play Card
+
     private var howToPlayCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("How to play")
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(Theme.textPrimary)
+        VStack(alignment: .leading, spacing: 12) {
+            Label {
+                Text("How to play")
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+            } icon: {
+                Image(systemName: "gamecontroller")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(levelType.accentColor)
+            }
+            .foregroundStyle(Theme.textPrimary)
 
             ForEach(Array(playSteps.enumerated()), id: \.offset) { i, step in
                 HStack(alignment: .top, spacing: 10) {
                     Text("\(i + 1)")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
-                        .frame(width: 22, height: 22)
+                        .frame(width: 24, height: 24)
                         .background(levelType.accentColor, in: Circle())
 
                     Text(step)
-                        .font(.system(size: 13, weight: .regular, design: .rounded))
+                        .font(.system(size: 15, weight: .regular, design: .rounded))
                         .foregroundStyle(Theme.textSecondary)
                 }
             }
         }
-        .padding(14)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 14))
     }
 
     private var playSteps: [String] {
         switch levelType {
         case .fetch: return [
-            "Tap Step — the pup picks a direction",
+            "Tap Step, the pup picks a direction",
             "See if it moved closer to the ball",
-            "Tap Treat (good move) or Bad (wrong way)"
+            "Tap Treat (good) or Bad (wrong way)"
         ]
         case .sit: return [
             "Tap Sit to give the command",
@@ -367,20 +424,34 @@ struct LevelIntroView: View {
             "Stayed still? Treat! Moved? Bad!"
         ]
         case .maze: return [
-            "Pup needs to reach the bone",
+            "Pup needs to reach the bone 🦴",
             "Reward moves toward the goal",
             "Punish wrong turns and wall hits"
         ]
         case .patrol: return [
             "Pup must visit checkpoints in order",
-            "Reward moves toward the next checkpoint",
-            "It has to learn the entire route"
+            "Reward moves toward the next one",
+            "It has to learn the entire route!"
         ]
         case .sock: return [
             "Pup must reach the 🎾 ball",
-            "Avoid the 🧦 stinky sock at all costs",
+            "Avoid the 🧦 stinky sock!",
             "Sock = big penalty, ball = big reward"
         ]
+        }
+    }
+
+    // MARK: - Bullet Row Helper
+
+    private func bulletRow(emoji: String, text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text(emoji)
+                .font(.system(size: 15))
+                .frame(width: 22, alignment: .center)
+            Text(text)
+                .font(.system(size: 15, weight: .regular, design: .rounded))
+                .foregroundStyle(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }

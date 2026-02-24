@@ -50,7 +50,7 @@ final class FetchEnvironment: RLEnvironment {
                 x: Int.random(in: 0..<gridSize),
                 y: Int.random(in: 0..<gridSize)
             )
-        } while ball == dogPosition
+        } while ball.manhattan(to: dogPosition) < 2
         self.ballPosition = ball
         self.previousDistance = abs(ballPosition.x - dogPosition.x) + abs(ballPosition.y - dogPosition.y)
     }
@@ -72,7 +72,7 @@ final class FetchEnvironment: RLEnvironment {
         dogPosition = GridPosition(x: Int.random(in: 0..<gridSize), y: Int.random(in: 0..<gridSize))
         repeat {
             ballPosition = GridPosition(x: Int.random(in: 0..<gridSize), y: Int.random(in: 0..<gridSize))
-        } while ballPosition == dogPosition
+        } while ballPosition.manhattan(to: dogPosition) < 2
         previousDistance = currentDistance
         didBounce = false
     }
