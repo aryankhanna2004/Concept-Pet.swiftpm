@@ -80,6 +80,10 @@ Concept Pet.swiftpm/
 2. Select an iPhone or iPad simulator
 3. Build and run (Cmd + R)
 
+## Privacy Policy
+
+[Privacy Policy](privacy-policy.md)
+
 ## License
 
 All rights reserved.
